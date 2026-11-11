@@ -51,8 +51,7 @@ export default function EditBranch({ open, onClose, data, refresh }) {
         const fetchCompanies = async () => {
             try {
                 const res = await fetch(
-                    `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/companies`,
-                    { headers: { "ngrok-skip-browser-warning": "true" } }
+                    `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/companies`
                 );
                 const json = await res.json();
                 if (json.success) setCompanies(json.data);
@@ -75,8 +74,7 @@ export default function EditBranch({ open, onClose, data, refresh }) {
                 {
                     method: "PUT",
                     headers: {
-                        "Content-Type": "application/json",
-                        "ngrok-skip-browser-warning": "true",
+                        "Content-Type": "application/json"
                     },
                     body: JSON.stringify(form),
                 }

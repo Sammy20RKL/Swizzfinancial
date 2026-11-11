@@ -4,8 +4,7 @@ import {
     FaUserShield,
     FaPlus,
     FaTrash,
-    FaChevronDown,
-    FaChevronUp,
+    FaEdit,
     FaEllipsisV,
 } from "react-icons/fa";
 
@@ -19,12 +18,14 @@ import {
 import Swal from "sweetalert2";
 import NotFoundImage from "/assets/scopefinding.png";
 import AddRole from "./AddRoles";
+import EditRole from "./EditRole";
+import * as authApi from "@/apis/auth/authApi";
 
 export default function Roles() {
     const [roles, setRoles] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [expandedRole, setExpandedRole] = useState(null);
     const [openAdd, setOpenAdd] = useState(false);
+    const [editingRole, setEditingRole] = useState(null);
 
     useEffect(() => {
         fetchRoles();
@@ -33,10 +34,8 @@ export default function Roles() {
     const fetchRoles = async () => {
         setLoading(true);
         try {
-            const res = await fetch(
-                "http://88.99.215.90:8600/api/auth/roles"
-            );
-            const json = await res.json();
+            const res = await authApi.getRoles();
+            const json = res.data;
             if (json.success) {
                 setRoles(json.data);
             }
@@ -50,7 +49,7 @@ export default function Roles() {
     const handleDelete = async (id) => {
         Swal.fire({
             title: "Delete Role?",
-            text: "This action cannot be undone.",
+            text: "This action cannot be undone. Deletion fails if the role is still assigned to a user.",
             icon: "warning",
             showCancelButton: true,
             confirmButtonColor: "#dc2626",
@@ -59,18 +58,12 @@ export default function Roles() {
         }).then(async (result) => {
             if (result.isConfirmed) {
                 try {
-                    const res = await fetch(
-                        `http://88.99.215.90:8600/api/auth/roles/${id}`,
-                        { method: "DELETE" }
-                    );
-
-                    if (!res.ok) throw new Error("Failed to delete role");
-
+                    await authApi.deleteRole(id);
                     setRoles((prev) => prev.filter((r) => r.Id !== id));
-
                     Swal.fire("Deleted!", "Role removed successfully.", "success");
                 } catch (err) {
-                    Swal.fire("Error", err.message, "error");
+                    const message = err.response?.data?.message || err.message;
+                    Swal.fire("Error", message, "error");
                 }
             }
         });
@@ -95,9 +88,10 @@ export default function Roles() {
 
             <div className="bg-gray-200 p-4 rounded-sm">
                 {/* Table Header */}
-                <div className="grid grid-cols-8 gap-4 bg-gray-700 text-gray-100 font-semibold p-3 rounded-lg mb-4">
+                <div className="grid grid-cols-9 gap-4 bg-gray-700 text-gray-100 font-semibold p-3 rounded-lg mb-4">
                     <span className="col-span-4">Role Name</span>
                     <span className="col-span-4">Description</span>
+                    <span className="col-span-1 text-right">Actions</span>
                 </div>
 
                 {/* Loading Skeleton */}
@@ -121,7 +115,7 @@ export default function Roles() {
                                 key={role.Id}
                                 className="bg-white rounded-lg shadow-lg border"
                             >
-                                <div className="grid grid-cols-8 gap-2 items-center py-4 px-6 hover:shadow-xl transition-all">
+                                <div className="grid grid-cols-9 gap-2 items-center py-4 px-6 hover:shadow-xl transition-all">
                                     <span className="font-medium text-indigo-700 col-span-4">
                                         {role.RoleName}
                                     </span>
@@ -129,6 +123,28 @@ export default function Roles() {
                                     <span className="col-span-4">
                                         {role.Description || "N/A"}
                                     </span>
+
+                                    <div className="col-span-1 flex justify-end">
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button variant="ghost" size="icon" className="h-8 w-8">
+                                                    <FaEllipsisV className="h-4 w-4 text-gray-600" />
+                                                </Button>
+                                            </DropdownMenuTrigger>
+
+                                            <DropdownMenuContent align="end" className="w-32">
+                                                <DropdownMenuItem onClick={() => setEditingRole(role)}>
+                                                    <FaEdit className="mr-2" /> Edit
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem
+                                                    className="text-red-600"
+                                                    onClick={() => handleDelete(role.Id)}
+                                                >
+                                                    <FaTrash className="mr-2" /> Delete
+                                                </DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    </div>
                                 </div>
                             </div>
                         ))}
@@ -149,6 +165,12 @@ export default function Roles() {
             <AddRole
                 open={openAdd}
                 onClose={() => setOpenAdd(false)}
+                refresh={fetchRoles}
+            />
+            <EditRole
+                open={!!editingRole}
+                role={editingRole}
+                onClose={() => setEditingRole(null)}
                 refresh={fetchRoles}
             />
         </div>

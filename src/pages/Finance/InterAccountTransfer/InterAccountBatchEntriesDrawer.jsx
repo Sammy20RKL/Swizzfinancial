@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Button } from "flowbite-react";
 import Swal from "sweetalert2";
 
-const API_BASE = "http://88.99.215.90:8600/api/values";
+const API_BASE = `${import.meta.env.VITE_APP_FIN_URL}/api/values`;
 
 export default function InterAccountBatchEntriesDrawer({
     open,
@@ -20,7 +20,7 @@ export default function InterAccountBatchEntriesDrawer({
             try {
                 const res = await fetch(
                     //`${API_BASE}/FindInterTransferBatchesEntries?batchId=${batchId}`
-                    `http://88.99.215.90:8600/api/values/FindInterTransferBatchesEntries?batchId=${batchId}`
+                    `${API_BASE}/FindInterTransferBatchesEntries?batchId=${batchId}`
                 );
 
                 if (!res.ok) {

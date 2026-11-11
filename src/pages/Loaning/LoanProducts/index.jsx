@@ -261,7 +261,7 @@ export default function LoanProducts() {
         setLoading(true);
         try {
             const res = await fetch(
-                `http://88.99.215.90:8600/api/Loansetups/GetLoanProducts?search=${search}&pageIndex=${pageIndex}&pageSize=${pageSize}`
+                `${import.meta.env.VITE_APP_LOANING_URL}/api/Loansetups/GetLoanProducts?search=${search}&pageIndex=${pageIndex}&pageSize=${pageSize}`
             );
             const json = await res.json();
             setProducts(json.Data || []);
@@ -335,10 +335,10 @@ export default function LoanProducts() {
 
             {/* Table Header */}
             <div className="bg-gray-200 p-4 rounded-sm">
-                <div className="grid grid-cols-12 gap-4 bg-gray-700 text-gray-100 font-semibold p-3 rounded-lg mb-4">
+                <div className="grid grid-cols-9 gap-4 bg-gray-700 text-gray-100 font-semibold p-3 rounded-lg mb-4">
                     <span className="col-span-3">Description</span>
                     <span className="col-span-2">Code</span>
-                    <span className="col-span-3">Priority</span>
+                    {/* <span className="col-span-3">Priority</span> */}
                     <span className="col-span-2">Interest %</span>
                     <span className="col-span-2 text-right">Actions</span>
                 </div>
@@ -358,10 +358,10 @@ export default function LoanProducts() {
                     <div className="space-y-2">
                         {products.map((p) => (
                             <div key={p.Id} className="bg-white rounded-lg shadow-lg border">
-                                <div className="grid grid-cols-12 gap-2 items-center py-4 px-6 hover:shadow-xl transition-all">
+                                <div className="grid grid-cols-9 gap-2 items-center py-4 px-6 hover:shadow-xl transition-all">
                                     <span className="font-medium text-indigo-700 col-span-3">{p.Description}</span>
                                     <span className="col-span-2">{p.PaddedCode}</span>
-                                    <span className="col-span-3">{p.Priority}</span>
+                                    {/* <span className="col-span-3">{p.Priority}</span> */}
                                     <span className="col-span-2 flex gap-1 items-center">{p.LoanInterestAnnualPercentageRate}%</span>
                                     <span className="col-span-2 text-right">
                                         <Button

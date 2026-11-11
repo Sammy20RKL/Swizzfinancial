@@ -2,8 +2,9 @@ import React, { useMemo, useState } from "react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
-export default function MemberAccountsTab({ accounts = [] }) {
+export default function MemberAccountsTab({ accounts, memberName }) {
     const [search, setSearch] = useState("");
+    const accountList = accounts ?? [];
 
     const [showDateModal, setShowDateModal] = useState(false);
     const [selectedAccountId, setSelectedAccountId] = useState(null);
@@ -13,12 +14,35 @@ export default function MemberAccountsTab({ accounts = [] }) {
     /* ================= SEARCH FILTER ================= */
     const filteredAccounts = useMemo(() => {
         const term = search.toLowerCase();
-        return accounts.filter((acc) =>
-            acc.FullAccountNumber?.toLowerCase().includes(term) ||
-            acc.CustomerAccountTypeTargetProductDescription?.toLowerCase().includes(term)
-            // Removed status from search filter
-        );
-    }, [search, accounts]);
+        return accountList.filter((acc) => {
+            const productDesc = acc.productDescription || acc.ProductDescription || "";
+            return productDesc.toLowerCase().includes(term);
+        });
+    }, [search, accountList]);
+
+    /* ================= HELPER: Get Account Balance ================= */
+    const getBalance = (acc) => {
+        return Number(acc.balance || acc.AccountBalance || 0);
+    };
+
+    /* ================= HELPER: Get Status Badge Color ================= */
+    const getBalanceStatus = (acc) => {
+        const balance = getBalance(acc);
+        const productDesc = acc.productDescription || acc.ProductDescription || "";
+        
+        // For DEPOSITS, SHARE CAPITAL, and M-Wallet, show green if positive
+        if (productDesc === "DEPOSITS" || productDesc === "SHARE CAPITAL" || productDesc === "M-Wallet") {
+            return balance > 0 ? "text-green-600" : balance < 0 ? "text-red-600" : "text-gray-400";
+        }
+        // For other accounts, show red if negative
+        return balance > 0 ? "text-green-600" : balance < 0 ? "text-red-600" : "text-gray-400";
+    };
+
+    /* ================= HELPER: Get formatted balance ================= */
+    const getFormattedBalance = (acc) => {
+        const balance = getBalance(acc);
+        return `Ksh ${Math.abs(balance).toLocaleString()}`;
+    };
 
     /* ================= PDF EXPORT ================= */
     const handleDownloadPDF = () => {
@@ -27,40 +51,53 @@ export default function MemberAccountsTab({ accounts = [] }) {
         doc.setFontSize(16);
         doc.text("Member Accounts", 14, 15);
 
+        if (memberName) {
+            doc.setFontSize(12);
+            doc.text(memberName, 14, 23);
+        }
+
         doc.setFontSize(10);
         doc.text(
             `Generated on: ${new Date().toLocaleDateString()}`,
             14,
-            22
+            memberName ? 29 : 22
         );
 
+        // Show ALL accounts (including zero balance)
+        const allAccounts = filteredAccounts;
+
         autoTable(doc, {
-            startY: 30,
-            // Removed "Status" from table headers
-            head: [["Account No", "Product", "Balance"]],
-            body: filteredAccounts.map((acc) => [
-                acc.FullAccountNumber,
-                acc.CustomerAccountTypeTargetProductDescription,
-                acc.BookBalance,
-                // Removed acc.RecordStatusDescription from body
-            ]),
+            startY: memberName ? 36 : 30,
+            head: [["Product", "Balance"]],
+            body: allAccounts.map((acc) => {
+                const balance = getBalance(acc);
+                return [
+                    acc.productDescription || acc.ProductDescription || "N/A",
+                    balance === 0 ? "0.00" : Math.abs(balance).toLocaleString(),
+                ];
+            }),
             theme: "striped",
             headStyles: {
-                fillColor: [55, 65, 81], // gray-700
+                fillColor: [55, 65, 81],
                 textColor: 255,
             },
             styles: {
                 fontSize: 10,
             },
             columnStyles: {
-                2: { halign: "right" }, // balance right aligned
+                1: { halign: "right" },
             },
         });
 
         doc.save("Member_Accounts.pdf");
     };
 
-    if (accounts.length === 0) {
+    // Show ALL accounts (no filtering by zero balance)
+    const displayAccounts = useMemo(() => {
+        return filteredAccounts;
+    }, [filteredAccounts]);
+
+    if (accountList.length === 0) {
         return <p className="text-sm text-gray-500">No accounts available</p>;
     }
 
@@ -96,7 +133,6 @@ export default function MemberAccountsTab({ accounts = [] }) {
             link.remove();
             URL.revokeObjectURL(blobUrl);
 
-            // close modal after success
             setShowDateModal(false);
             setStartDate("");
             setEndDate("");
@@ -106,69 +142,54 @@ export default function MemberAccountsTab({ accounts = [] }) {
         }
     };
 
-    console.log("Accounts:", accounts);
-
     return (
         <div className="border rounded-lg bg-gray-200 p-4">
-            {/* ================= TOP BAR ================= */}
             <div className="flex flex-col md:flex-row justify-between gap-3 mb-4">
                 <input
                     type="text"
-                    placeholder="Search by account no or product" // Updated placeholder
+                    placeholder="Search by product name..."
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     className="w-full md:max-w-xs px-4 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 bg-gray-50"
                 />
 
-                {/* PDF download button (commented out) */}
-                {/* <button
+                <button
                     onClick={handleDownloadPDF}
                     className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium shadow"
                 >
                     Download PDF
-                </button> */}
+                </button>
             </div>
 
-            {/* ================= TABLE ================= */}
             <div className="overflow-x-auto rounded-lg">
                 <table className="w-full text-sm">
                     <thead className="bg-gray-700 text-white">
                         <tr>
-                            <th className="p-2 text-left">Account No</th>
                             <th className="p-2 text-left">Product</th>
                             <th className="p-2 text-right">Balance</th>
-                            {/* Removed Status header */}
                             <th className="p-2 text-center">Action</th>
                         </tr>
                     </thead>
 
                     <tbody className="bg-gray-50">
-                        {filteredAccounts.length === 0 ? (
-                            <tr>
-                                <td
-                                    colSpan="4" // Updated colSpan from 4 to 3 (removed status column)
-                                    className="p-4 text-center text-gray-500"
-                                >
-                                    No matching records
-                                </td>
-                            </tr>
-                        ) : (
-                            filteredAccounts.map((acc, i) => (
+                        {displayAccounts.map((acc, i) => {
+                            const accountId = acc.accountId || acc.AccountId || acc.Id || acc.id;
+                            const productDesc = acc.productDescription || acc.ProductDescription || "N/A";
+                            const balance = getBalance(acc);
+                            const statusColor = getBalanceStatus(acc);
+                            const formattedBalance = getFormattedBalance(acc);
+                            
+                            return (
                                 <tr key={i} className="border-t hover:bg-gray-100">
-                                    <td className="p-2">{acc.FullAccountNumber}</td>
-                                    <td className="p-2">
-                                        {acc.CustomerAccountTypeTargetProductDescription}
+                                    <td className="p-2 font-medium">{productDesc}</td>
+                                    <td className={`p-2 text-right font-semibold ${statusColor}`}>
+                                        {formattedBalance}
                                     </td>
-                                    <td className="p-2 text-right">
-                                        {Number(acc.BookBalance).toLocaleString()}
-                                    </td>
-                                    {/* Removed Status cell */}
                                     <td className="p-2 text-center space-x-2">
-                                        {/* Savings / Share account statement */}
-                                        {acc.CustomerAccountTypeProductCodeDescription == "Savings" && (
+                                        {balance !== 0 && (
                                             <button
                                                 onClick={() => {
-                                                    setSelectedAccountId(acc.Id);
+                                                    setSelectedAccountId(accountId);
                                                     setShowDateModal(true);
                                                 }}
                                                 className="bg-red-600 hover:bg-red-700 px-3 py-1 rounded-md text-white text-xs"
@@ -178,11 +199,12 @@ export default function MemberAccountsTab({ accounts = [] }) {
                                         )}
                                     </td>
                                 </tr>
-                            ))
-                        )}
+                            );
+                        })}
                     </tbody>
                 </table>
             </div>
+
             {showDateModal && (
                 <div className="fixed inset-0 bg-black/50 bg-opacity-20 flex items-center justify-end pr-10 z-50">
                     <div className="bg-white rounded-lg shadow-lg w-full max-w-sm p-5">

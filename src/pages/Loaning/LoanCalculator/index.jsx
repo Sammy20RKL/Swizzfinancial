@@ -49,9 +49,7 @@ export default function LoanCalculator() {
 
 
     useEffect(() => {
-        fetch(`${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/customers`, {
-            headers: { "ngrok-skip-browser-warning": "true" },
-        })
+        fetch(`${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/customers`)
             .then((res) => res.json())
             .then((data) => {
                 if (data.success) setCustomers(data.data || []);

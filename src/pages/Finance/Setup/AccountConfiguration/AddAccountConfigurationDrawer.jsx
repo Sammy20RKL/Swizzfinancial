@@ -166,8 +166,7 @@ function ChartOfAccountSubDrawer({ open, onClose, onSelect }) {
       const fetchAccounts = async () => {
         try {
           const res = await fetch(
-            `${import.meta.env.VITE_APP_FIN_URL}/api/values/GetChartOfAccount`,
-            { headers: { "ngrok-skip-browser-warning": "true" } }
+            `${import.meta.env.VITE_APP_FIN_URL}/api/values/GetChartOfAccount`
           );
           const data = await res.json();
           if (data.Success) setAccounts(data.Data);
@@ -246,8 +245,7 @@ function SystemGLSubDrawer({ open, onClose, onSelect }) {
       const fetchGl = async () => {
         try {
           const res = await fetch(
-            `${import.meta.env.VITE_APP_FIN_URL}/api/values/GetSystemMapItems`,
-            { headers: { "ngrok-skip-browser-warning": "true" } }
+            `${import.meta.env.VITE_APP_FIN_URL}/api/values/GetSystemMapItems`
           );
           const data = await res.json();
           // ✅ API returns an array directly
@@ -349,7 +347,6 @@ export default function AddAccountConfigurationDrawer({ open, onClose, onSuccess
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "ngrok-skip-browser-warning": "true",
           },
           body: JSON.stringify(formData),
         }
@@ -408,44 +405,44 @@ export default function AddAccountConfigurationDrawer({ open, onClose, onSuccess
               <form onSubmit={handleSubmit} className="space-y-4">
                 {/* System GL Account Code */}
                 <div>
-                <Label>System General Ledger Account</Label>
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="Select GL Account"
-                    value={formData.SystemGeneralLedgerAccountName}   // 👈 show label
-                    readOnly
-                    required
-                  />
-                  <Button
-                    type="button"
-                    onClick={() => setGlDrawerOpen(true)}
-                    className="bg-indigo-600 hover:bg-indigo-700"
-                  >
-                    Select
-                  </Button>
+                  <Label>System General Ledger Account</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Select GL Account"
+                      value={formData.SystemGeneralLedgerAccountName}   // 👈 show label
+                      readOnly
+                      required
+                    />
+                    <Button
+                      type="button"
+                      onClick={() => setGlDrawerOpen(true)}
+                      className="bg-indigo-600 hover:bg-indigo-700"
+                    >
+                      Select
+                    </Button>
+                  </div>
                 </div>
-              </div>
 
 
                 {/* Chart of Account */}
                 <div>
-                <Label>Chart Of Account</Label>
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="Select Chart Of Account"
-                    value={formData.ChartOfAccountName}   // 👈 show label
-                    readOnly
-                    required
-                  />
-                  <Button
-                    type="button"
-                    onClick={() => setCoaDrawerOpen(true)}
-                    className="bg-indigo-600 hover:bg-indigo-700"
-                  >
-                    Select
-                  </Button>
+                  <Label>Chart Of Account</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Select Chart Of Account"
+                      value={formData.ChartOfAccountName}   // 👈 show label
+                      readOnly
+                      required
+                    />
+                    <Button
+                      type="button"
+                      onClick={() => setCoaDrawerOpen(true)}
+                      className="bg-indigo-600 hover:bg-indigo-700"
+                    >
+                      Select
+                    </Button>
+                  </div>
                 </div>
-              </div>
 
 
                 {/* Description */}
@@ -481,14 +478,14 @@ export default function AddAccountConfigurationDrawer({ open, onClose, onSuccess
 
 
 
-         <ChartOfAccountSubDrawer
-          open={coaDrawerOpen}
-          onClose={() => setCoaDrawerOpen(false)}
-          onSelect={(acc) => {
-            handleChange("ChartOfAccountId", acc.Id);              // 👈 value
-            handleChange("ChartOfAccountName", acc.AccountName);   // 👈 label
-          }}
-        />
+          <ChartOfAccountSubDrawer
+            open={coaDrawerOpen}
+            onClose={() => setCoaDrawerOpen(false)}
+            onSelect={(acc) => {
+              handleChange("ChartOfAccountId", acc.Id);              // 👈 value
+              handleChange("ChartOfAccountName", acc.AccountName);   // 👈 label
+            }}
+          />
 
         </>
       )}

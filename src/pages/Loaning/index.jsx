@@ -27,8 +27,7 @@ export default function Loaning() {
     const fetchLoanDrafts = () => {
         setLoading(true);
         fetch(
-            `${import.meta.env.VITE_APP_LOANING_URL}/api/Loaning/GetLoansBy?status=Registered`,
-            { headers: { "ngrok-skip-browser-warning": "true" } }
+            `${import.meta.env.VITE_APP_LOANING_URL}/api/Loaning/GetLoansBy?status=Registered`
         )
             .then((res) => res.json())
             .then((data) => {
@@ -42,8 +41,7 @@ export default function Loaning() {
     const fetchLoanAppraised = () => {
         setLoading(true);
         fetch(
-            `${import.meta.env.VITE_APP_LOANING_URL}/api/Loaning/GetLoansBy?status=audited`,
-            { headers: { "ngrok-skip-browser-warning": "true" } }
+            `${import.meta.env.VITE_APP_LOANING_URL}/api/Loaning/GetLoansBy?status=audited`
         )
             .then((res) => res.json())
             .then((data) => {
@@ -57,7 +55,7 @@ export default function Loaning() {
         setLoading(true);
         fetch(
             `${import.meta.env.VITE_APP_LOANING_URL}/api/Loaning/GetLoansBy?status=Approved`,
-            { headers: { "ngrok-skip-browser-warning": "true" } }
+
         )
             .then((res) => res.json())
             .then((data) => {
@@ -71,7 +69,7 @@ export default function Loaning() {
         setLoading(true);
         fetch(
             `${import.meta.env.VITE_APP_LOANING_URL}/api/Loaning/GetLoansBy?status=Rejected`,
-            { headers: { "ngrok-skip-browser-warning": "true" } }
+
         )
             .then((res) => res.json())
             .then((data) => {
@@ -85,7 +83,7 @@ export default function Loaning() {
         setLoading(true);
         fetch(
             `${import.meta.env.VITE_APP_LOANING_URL}/api/Loaning/GetLoansBy?status=disbursed`,
-            { headers: { "ngrok-skip-browser-warning": "true" } }
+
         )
             .then((res) => res.json())
             .then((data) => {
@@ -99,7 +97,7 @@ export default function Loaning() {
         setLoading(true);
         try {
             const res = await fetch(
-                `http://88.99.215.90:8600/api/Loansetups/GetLoanProducts`
+                `${import.meta.env.VITE_APP_LOANING_URL}/api/Loansetups/GetLoanProducts`
             );
             const json = await res.json();
             setProducts(json.Data || []);
@@ -115,9 +113,7 @@ export default function Loaning() {
 
     const fetchLoanSectors = () => {
         setLoading(true);
-        fetch("http://88.99.215.90:8600/api/Loansetups/GetAllloanSector", {
-            headers: { "ngrok-skip-browser-warning": "true" },
-        })
+        fetch(`${import.meta.env.VITE_APP_LOANING_URL}/api/Loansetups/GetAllloanSector`)
             .then((res) => res.json())
             .then((data) => {
                 setSectors(Array.isArray(data) ? data : []);
@@ -129,9 +125,7 @@ export default function Loaning() {
 
     const fetchLoanSubSectors = () => {
         setLoading(true);
-        fetch("http://88.99.215.90:8600/api/Loansetups/GetAllLoanSubSector", {
-            headers: { "ngrok-skip-browser-warning": "true" },
-        })
+        fetch(`${import.meta.env.VITE_APP_LOANING_URL}/api/Loansetups/GetAllLoanSubSector`)
             .then((res) => res.json())
             .then((data) => {
                 setSubSectors(Array.isArray(data) ? data : []);

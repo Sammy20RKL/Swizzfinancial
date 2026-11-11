@@ -34,7 +34,7 @@ export default function Employers() {
     const [openAdd, setOpenAdd] = useState(false);
     const [openEdit, setOpenEdit] = useState(false);
     const [selectedEmployer, setSelectedEmployer] = useState(null);
-    
+
     // Filter states
     const [searchQuery, setSearchQuery] = useState("");
     const [statusFilter, setStatusFilter] = useState("all");
@@ -54,8 +54,7 @@ export default function Employers() {
         setLoading(true);
         try {
             const res = await fetch(
-                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/employers`,
-                { headers: { "ngrok-skip-browser-warning": "true" } }
+                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/employers`
             );
             const json = await res.json();
             if (json.success) setEmployers(json.data);
@@ -394,8 +393,8 @@ export default function Employers() {
                     <div className="text-gray-500 text-center mt-4">
                         <img src={NotFoundImage} alt="Not Found" className="mx-auto w-42" />
                         <p className="font-medium text-gray-400">
-                            {searchQuery || statusFilter !== "all" 
-                                ? "No employers match your search criteria." 
+                            {searchQuery || statusFilter !== "all"
+                                ? "No employers match your search criteria."
                                 : "No Employers Found."}
                         </p>
                         {(searchQuery || statusFilter !== "all") && (

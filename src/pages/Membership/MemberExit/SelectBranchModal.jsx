@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
-const API_URL = "http://88.99.215.90:8600";
+const API_URL = `${import.meta.env.VITE_APP_MEMBERSHIP_URL}`;
 
 export default function SelectBranchModal({ open, onClose, onSelect }) {
     const [branches, setBranches] = useState([]);

@@ -9,104 +9,39 @@ import CustomerSelectModal from "./CustomerSelectModal";
 import LoanProductSelectModal from "./LoanProductSelectModal";
 import GuarantorSelectModal from "./GuarantorSelectModal";
 import ParentLoanSelectModal from "./ParentLoanSelectModal";
-
-
-
-
-
+import { useLoanApplication } from "./LoanApplicationContext";
 
 export default function AddLoanApplicationDrawer({ open, onClose }) {
+    const {
+        form, setForm,
+        guarantors, setGuarantors,
+        selectedAccounts, setSelectedAccounts,
+        boosted, setBoosted,
+        selectedParentLoan, setSelectedParentLoan,
+        maxTermMonths, setMaxTermMonths,
+        hasDraft,
+        drafts, activeDraftId, activeDraft,
+        saveNewDraft, loadDraft, deleteDraft, newForm,
+    } = useLoanApplication();
+
     const [loading, setLoading] = useState(false);
+    const [isLoadingCustomers, setIsLoadingCustomers] = useState(false);
     const [customers, setCustomers] = useState([]);
     const [searchValue, setSearchValue] = useState("");
     const [loanProducts, setLoanProducts] = useState([]);
     const [loanProductSearch, setLoanProductSearch] = useState("");
     const [loanSectors, setLoanSectors] = useState([]);
     const [loanSubSectors, setLoanSubSectors] = useState([]);
-    const [selectedAccounts, setSelectedAccounts] = useState([]);
-    const [boosted, setBoosted] = useState(false);
     const [customerModalOpen, setCustomerModalOpen] = useState(false);
     const [loanProductModalOpen, setLoanProductModalOpen] = useState(false);
-
     const [guarantorModalIndex, setGuarantorModalIndex] = useState(null);
     const [parentLoanModalOpen, setParentLoanModalOpen] = useState(false);
-
-    const [selectedParentLoan, setSelectedParentLoan] = useState(null);
-
-
-
-
-
-
-
-    const [form, setForm] = useState({
-        // CUSTOMER
-        CustomerId: "",
-        CustomerPersonalIdentificationNumber: "",
-        CustomerIndividualIdentityCardNumber: "",
-        CustomerIndividualPayrollNumbers: "",
-        CustomerFullName: "",
-        CustomerAddressMobileLine: "",
-        CustomerAddressEmail: "",
-
-        // LOAN PRODUCT (AUTO-FILLED)
-        LoanProductId: "",
-        LoanProductDescription: "",
-        LoanRegistrationTermInMonths: 0,
-        LoanInterestAnnualPercentageRate: 0,
-        LoanInterestChargeModeDescription: "",
-        LoanInterestCalculationModeDescription: "",
-        LoanRegistrationLoanProductCategoryDescription: "",
-        LoanRegistrationMaximumAmount: 0,
-        LoanRegistrationMinimumInterestAmount: 0,
-        LoanRegistrationInvestmentsMultiplier: 0,
-        LoanRegistrationStandingOrderTriggerDescription: "",
-        LoanRegistrationMinimumGuarantors: 0,
-        LoanRegistrationMaximumGuarantees: 0,
-        LoanRegistrationAllowSelfGuarantee: false,
-
-        // USER INPUT
-        LoanPurposeDescription: "",
-        Remarks: "",
-        AmountApplied: 0,
-        Reference: "",
-        IsBatched: false,
-        receivedDate: new Date().toISOString().split("T")[0],
-
-        // SALARY
-        LoanRegistrationNetIncome: 0,
-        LoanRegistrationTotalAllowance: 0,
-        LoanRegistrationTotalDeduction: 0,
-        LoanRegistrationTotalIncome: 0,
-
-        //Sector
-        SectorCode: "",
-        SubSectorCode: "",
-
-        parentId: "",
-
-    });
-
-
-    const [guarantors, setGuarantors] = useState([
-        {
-            CustomerId: "",
-            AmountGuaranteed: 0,
-            PersonalIdentificationNumber: "",
-            IndividualIdentityCardNumber: "",
-            IndividualPayrollNumbers: "",
-            AddressEmail: "",
-            AddressMobileLine: "",
-            FullName: "",
-            Remarks: "",
-        },
-    ]);
-
+    const [draftsOpen, setDraftsOpen] = useState(false);
+    const [hasOffset, setHasOffset] = useState(false);
+    const [excessConfirmed, setExcessConfirmed] = useState(false);
 
     useEffect(() => {
-        fetch(`${import.meta.env.VITE_APP_LOANING_URL}/api/Loansetups/GetLoanproducts`, {
-            headers: { "ngrok-skip-browser-warning": "true" },
-        })
+        fetch(`${import.meta.env.VITE_APP_LOANING_URL}/api/Loansetups/GetLoanproducts`)
             .then(res => res.json())
             .then(data => {
                 if (data.Success) {
@@ -118,12 +53,8 @@ export default function AddLoanApplicationDrawer({ open, onClose }) {
             });
     }, []);
 
-
-
     useEffect(() => {
-        fetch("http://88.99.215.90:8600/api/Loansetups/GetAllloanSector", {
-            headers: { "ngrok-skip-browser-warning": "true" },
-        })
+        fetch(`${import.meta.env.VITE_APP_LOANING_URL}/api/Loansetups/GetAllloanSector`)
             .then(res => res.json())
             .then(data => setLoanSectors(data || []))
             .catch(() => {
@@ -131,24 +62,14 @@ export default function AddLoanApplicationDrawer({ open, onClose }) {
             });
     }, []);
 
-
-
-
     useEffect(() => {
-        fetch("http://88.99.215.90:8600/api/Loansetups/GetAllLoanSubSector", {
-            headers: { "ngrok-skip-browser-warning": "true" },
-        })
+        fetch(`${import.meta.env.VITE_APP_LOANING_URL}/api/Loansetups/GetAllLoanSubSector`)
             .then(res => res.json())
             .then(data => setLoanSubSectors(data || []))
             .catch(() => {
                 Swal.fire("Error", "Failed to load loan sub sectors", "error");
             });
     }, []);
-
-
-
-
-
 
     const filteredSubSectors = loanSubSectors.filter(
         s =>
@@ -157,74 +78,144 @@ export default function AddLoanApplicationDrawer({ open, onClose }) {
             s.SubSectorCode.startsWith(form.SectorCode)
     );
 
-
-
-
-    /* ================= FETCH CUSTOMERS ================= */
-
-    useEffect(() => {
-        fetch("http://88.99.215.90:8600/api/values/GetMembersWithDetails", {
-            headers: { "ngrok-skip-browser-warning": "true" },
-        })
-            .then(res => res.json())
-            .then(data => {
+    /* ================= FETCH CUSTOMERS WITH SEARCH ================= */
+        const fetchCustomers = async (search = "") => {
+            setIsLoadingCustomers(true);
+            try {
+                const url = `${import.meta.env.VITE_APP_LOANING_URL}/api/values/GetMembersWithDetails?search=${encodeURIComponent(search)}&pageIndex=0&pageSize=1000`;
+                const response = await fetch(url);
+                const data = await response.json();
+                
                 if (data.Success) {
-                    setCustomers(data.Data.Members || []);
+                    const membersList = data.Data?.members || [];
+                    console.log(`Fetched ${membersList.length} members${search ? ` for search: "${search}"` : ''}`);
+                    setCustomers(membersList);
+                } else {
+                    setCustomers([]);
                 }
-            })
-            .catch(() => {
+            } catch (error) {
+                console.error("Error fetching members:", error);
                 Swal.fire("Error", "Failed to load members", "error");
-            });
-    }, []);
+                setCustomers([]);
+            } finally {
+                setIsLoadingCustomers(false);
+            }
+        };
+
+        // Initial fetch when drawer opens
+        useEffect(() => {
+            if (open) {
+                fetchCustomers();
+            }
+        }, [open]);
+
+        // Handle search from modal
+        const handleCustomerSearch = async (searchTerm) => {
+            if (searchTerm.trim().length > 0) {
+                await fetchCustomers(searchTerm);
+            } else {
+                await fetchCustomers();
+            }
+        };
 
     const update = (key, value) => {
         setForm(prev => ({ ...prev, [key]: value }));
     };
 
+    // When a draft with a parent loan is loaded, show the offset section automatically
+    useEffect(() => {
+        if (selectedParentLoan) setHasOffset(true);
+    }, [selectedParentLoan]);
 
+    const handleSafeClose = () => {
+        if (hasDraft && !activeDraftId) {
+            Swal.fire({
+                title: "Unsaved changes",
+                text: "Save as a draft before closing?",
+                icon: "question",
+                showDenyButton: true,
+                showCancelButton: true,
+                confirmButtonColor: "#4f46e5",
+                denyButtonColor: "#6b7280",
+                confirmButtonText: "Save Draft",
+                denyButtonText: "Discard & Close",
+                cancelButtonText: "Stay",
+            }).then(r => {
+                if (r.isConfirmed) { saveNewDraft(); onClose(); }
+                else if (r.isDenied) { newForm(); onClose(); }
+            });
+        } else {
+            onClose();
+        }
+    };
 
+    const handleSaveDraft = () => {
+        if (activeDraftId) {
+            Swal.fire({ icon: "success", title: "Draft updated", timer: 1200, showConfirmButton: false });
+        } else {
+            const label = form.CustomerFullName
+                ? `${form.CustomerFullName}${form.LoanProductDescription ? " — " + form.LoanProductDescription : ""}`
+                : `Draft ${drafts.length + 1}`;
+            saveNewDraft(label);
+            Swal.fire({ icon: "success", title: "Draft saved", timer: 1200, showConfirmButton: false });
+        }
+    };
 
     /* ================= CUSTOMER SELECT ================= */
     const totalAvailableBalance = selectedAccounts
-        .filter(a => a.CustomerAccountTypeProductCode === 1) // Savings only
-        .reduce((sum, a) => sum + (Number(a.AvailableBalance) || 0), 0);
+        .filter(a => a.CustomerAccountType_ProductCode === 1)
+        .reduce((sum, a) => sum + (Number(a.AccountBalance) || 0), 0);
 
-
-    // // Member Deposits (Savings only)
-    // const memberDeposits = selectedAccounts
-    //     .filter(a => a.CustomerAccountTypeProductCode === 1) // Savings
-    //     .reduce((sum, a) => sum + (Number(a.AvailableBalance) || 0), 0);
-
+    // FIXED: Use correct field names from the flat API structure
     const memberDeposits = useMemo(() => {
         return selectedAccounts
             .filter(acc =>
-                acc.FullAccountNumber.slice(-3) === "001" &&
-                acc.AvailableBalance > 0
+                acc.productDescription === "DEPOSITS" && 
+                acc.accountType === "Savings" && 
+                (Number(acc.balance) || 0) > 0
             )
-            .reduce((sum, acc) => sum + Number(acc.AvailableBalance || 0), 0);
+            .reduce((sum, acc) => sum + Number(acc.balance || 0), 0);
     }, [selectedAccounts]);
 
-
-    // Total Savings = Member Deposits * 4
     const totalSavings = memberDeposits * 4;
 
+    // Helper function to get customer display value from flat structure
+    const getCustomerDisplayValue = (member) => {
+        const fullName = member.fullName || member.FullName || `${member.firstName || ''} ${member.lastName || ''}`;
+        const idNumber = member.idNumber || member.IndividualIdentityCardNumber || '';
+        const payroll = member.payrollNumber || member.Reference3 || '';
+        return `${fullName} | ${idNumber} | ${payroll}`;
+    };
 
-
+    // FIXED: Handle flat customer structure
     const handleCustomerSelect = (value) => {
         setSearchValue(value);
 
-        const selectedMember = customers.find(m =>
-            `${m.Customer.IndividualFirstName} | ${m.Customer.IndividualIdentityCardNumber} | ${m.Customer.Reference3}` === value
-        );
+        const selectedMember = customers.find(m => {
+            const displayValue = getCustomerDisplayValue(m);
+            return displayValue === value;
+        });
 
         if (!selectedMember) return;
 
-        const c = selectedMember.Customer;
+        // Extract customer data from flat structure
+        const c = {
+            Id: selectedMember.id || selectedMember.Id || '',
+            IndividualFirstName: selectedMember.firstName || selectedMember.IndividualFirstName || '',
+            IndividualLastName: selectedMember.lastName || selectedMember.IndividualLastName || '',
+            IndividualIdentityCardNumber: selectedMember.idNumber || selectedMember.IndividualIdentityCardNumber || '',
+            Reference3: selectedMember.payrollNumber || selectedMember.Reference3 || '',
+            PersonalIdentificationNumber: selectedMember.personalIdentificationNumber || selectedMember.PersonalIdentificationNumber || '',
+            AddressMobileLine: selectedMember.address?.mobileLine || selectedMember.AddressMobileLine || '',
+            AddressEmail: selectedMember.address?.email || selectedMember.AddressEmail || '',
+            Reference2: selectedMember.memberNumber || selectedMember.Reference2 || '',
+        };
 
-        setSelectedAccounts(selectedMember.Accounts || []);
+        const accounts = selectedMember.accounts || selectedMember.Accounts || [];
+
+        setSelectedAccounts(accounts);
 
         setForm({
-            // CUSTOMER
             CustomerId: c.Id,
             CustomerFullName: `${c.IndividualFirstName} ${c.IndividualLastName}` || "",
             CustomerIndividualIdentityCardNumber: c.IndividualIdentityCardNumber || "",
@@ -233,8 +224,6 @@ export default function AddLoanApplicationDrawer({ open, onClose }) {
             CustomerAddressMobileLine: c.AddressMobileLine || "",
             CustomerAddressEmail: c.AddressEmail || "",
             Reference: "",
-
-            // LOAN PRODUCT (AUTO-FILLED)
             LoanProductId: "",
             LoanProductDescription: "",
             LoanRegistrationTermInMonths: 0,
@@ -249,26 +238,18 @@ export default function AddLoanApplicationDrawer({ open, onClose }) {
             LoanRegistrationMinimumGuarantors: 0,
             LoanRegistrationMaximumGuarantees: 0,
             LoanRegistrationAllowSelfGuarantee: false,
-
-            // USER INPUT
             LoanPurposeDescription: "",
             Remarks: "",
             AmountApplied: 0,
-            receivedDate: "",
-
-            // SALARY
+            receivedDate: new Date().toISOString().split('T')[0],
             LoanRegistrationNetIncome: 0,
             LoanRegistrationTotalAllowance: 0,
             LoanRegistrationTotalDeduction: 0,
             LoanRegistrationTotalIncome: 0,
-
-            //SECTOR
             SectorCode: "",
             SubSectorCode: ""
         });
     };
-
-
 
     const handleLoanProductSelect = (value) => {
         setLoanProductSearch(value);
@@ -281,30 +262,24 @@ export default function AddLoanApplicationDrawer({ open, onClose }) {
 
         setForm(prev => ({
             ...prev,
-
             LoanProductId: selected.Id,
             LoanProductDescription: selected.Description,
             LoanRegistrationTermInMonths: selected.LoanRegistrationTermInMonths,
             LoanInterestAnnualPercentageRate: selected.LoanInterestAnnualPercentageRate,
             LoanInterestChargeModeDescription: selected.LoanInterestChargeModeDescription,
             LoanInterestCalculationModeDescription: selected.LoanInterestCalculationModeDescription,
-            LoanRegistrationLoanProductCategoryDescription:
-                selected.LoanRegistrationLoanProductCategoryDescription,
+            LoanRegistrationLoanProductCategoryDescription: selected.LoanRegistrationLoanProductCategoryDescription,
             LoanRegistrationMaximumAmount: selected.LoanRegistrationMaximumAmount,
             LoanRegistrationMinimumInterestAmount: selected.LoanRegistrationMinimumInterestAmount,
             LoanRegistrationInvestmentsMultiplier: selected.LoanRegistrationInvestmentsMultiplier,
-            LoanRegistrationStandingOrderTriggerDescription:
-                selected.LoanRegistrationStandingOrderTriggerDescription,
-            LoanRegistrationMinimumGuarantors:
-                selected.LoanRegistrationMinimumGuarantors,
-            LoanRegistrationMaximumGuarantees:
-                selected.LoanRegistrationMaximumGuarantees,
-            LoanRegistrationAllowSelfGuarantee:
-                selected.LoanRegistrationAllowSelfGuarantee,
+            LoanRegistrationStandingOrderTriggerDescription: selected.LoanRegistrationStandingOrderTriggerDescription,
+            LoanRegistrationMinimumGuarantors: selected.LoanRegistrationMinimumGuarantors,
+            LoanRegistrationMaximumGuarantees: selected.LoanRegistrationMaximumGuarantees,
+            LoanRegistrationAllowSelfGuarantee: selected.LoanRegistrationAllowSelfGuarantee,
         }));
 
+        setMaxTermMonths(selected.LoanRegistrationTermInMonths || 0);
 
-        // ensure minimum guarantors exist
         const min = selected.LoanRegistrationMinimumGuarantors || 0;
 
         setGuarantors(
@@ -319,12 +294,10 @@ export default function AddLoanApplicationDrawer({ open, onClose }) {
                 AddressMobileLine: "",
                 FullName: "",
                 Remarks: "",
+                MemberDeposits: 0
             }))
         );
-
     };
-
-
 
     const updateGuarantor = (index, key, value) => {
         const copy = [...guarantors];
@@ -345,10 +318,10 @@ export default function AddLoanApplicationDrawer({ open, onClose }) {
                 AddressMobileLine: "",
                 FullName: "",
                 Remarks: "",
+                MemberDeposits: 0
             },
         ]);
     };
-
 
     const removeGuarantor = (index) => {
         const min = form.LoanRegistrationMinimumGuarantors || 0;
@@ -363,16 +336,14 @@ export default function AddLoanApplicationDrawer({ open, onClose }) {
         }
 
         setGuarantors(prev => prev.filter((_, i) => i !== index));
-
     };
 
-
+    // FIXED: Handle flat structure for guarantor selection
     const handleGuarantorSelect = (index, value) => {
-
-        const selected = customers.find(c =>
-            `${c.Customer.IndividualFirstName} | ${c.Customer.IndividualIdentityCardNumber} | ${c.Customer.Reference3}` === value
-        );
-
+        const selected = customers.find(m => {
+            const displayValue = getCustomerDisplayValue(m);
+            return displayValue === value;
+        });
 
         if (!selected) {
             updateGuarantor(index, "searchValue", value);
@@ -380,7 +351,27 @@ export default function AddLoanApplicationDrawer({ open, onClose }) {
         }
 
         const copy = [...guarantors];
-        const c = selected.Customer;
+
+        // Extract customer data from flat structure
+        const c = {
+            Id: selected.id || selected.Id || '',
+            IndividualFirstName: selected.firstName || selected.IndividualFirstName || '',
+            IndividualLastName: selected.lastName || selected.IndividualLastName || '',
+            IndividualIdentityCardNumber: selected.idNumber || selected.IndividualIdentityCardNumber || '',
+            Reference3: selected.payrollNumber || selected.Reference3 || '',
+            PersonalIdentificationNumber: selected.personalIdentificationNumber || selected.PersonalIdentificationNumber || '',
+            AddressMobileLine: selected.address?.mobileLine || selected.AddressMobileLine || '',
+            AddressEmail: selected.address?.email || selected.AddressEmail || '',
+        };
+
+        // Calculate guarantor's total deposits
+        const accounts = selected.accounts || selected.Accounts || [];
+        const guarantorDeposits = accounts
+            .filter(acc => 
+                acc.productDescription === "DEPOSITS" && 
+                acc.accountType === "Savings"
+            )
+            .reduce((sum, acc) => sum + (Number(acc.balance || 0) || 0), 0);
 
         copy[index] = {
             ...copy[index],
@@ -392,30 +383,18 @@ export default function AddLoanApplicationDrawer({ open, onClose }) {
             AddressMobileLine: c.AddressMobileLine || "",
             AddressEmail: c.AddressEmail || "",
             CustomerId: c.Id,
+            MemberDeposits: guarantorDeposits
         };
-
 
         setGuarantors(copy);
     };
-
-
-    // if (selected.IdentificationNumber === form.CustomerIndividualIdentityCardNumber) {
-    //     Swal.fire("Warning", "Applicant cannot be a guarantor", "warning");
-    //     return;
-    // }
-
-
-
 
     const payload = {
         ...form,
         Guarantors: guarantors,
     };
 
-    console.log(payload);
     const handleSubmit = async () => {
-
-        //minimum guarantors validation
         if (guarantors.length < form.LoanRegistrationMinimumGuarantors) {
             Swal.fire(
                 "Validation Error",
@@ -425,13 +404,11 @@ export default function AddLoanApplicationDrawer({ open, onClose }) {
             return;
         }
 
-        //total guaranteed amount validation
         const totalGuaranteed = guarantors.reduce(
             (sum, g) => sum + (Number(g.AmountGuaranteed) || 0),
             0
         );
 
-        //total guaranteed amount should not exceed amount applied
         if (totalGuaranteed > Number(form.AmountApplied)) {
             Swal.fire(
                 "Validation Error",
@@ -441,7 +418,6 @@ export default function AddLoanApplicationDrawer({ open, onClose }) {
             return;
         }
 
-
         setLoading(true);
         try {
             const response = await fetch(
@@ -450,38 +426,23 @@ export default function AddLoanApplicationDrawer({ open, onClose }) {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json",
-                        "ngrok-skip-browser-warning": "true",
                     },
                     body: JSON.stringify(payload),
                 }
             );
 
-
-
             const data = await response.json();
 
-
-
-            console.log(data);
             if (data.success || data.Success) {
                 Swal.fire(data.message, data.Data, "success");
-                // Swal.fire({
-                //     icon: "success",
-                //     title: data.message,
-                //     text: data.Data,
-                // });
-
             } else {
                 Swal.fire(data.message, data.Data, "error");
             }
 
-            // if (!response.ok || !data.Id) {
-            //     throw new Error("Failed to submit loan application");
-            // }
-
-
-
-            //Swal.fire("Success", "Loan application submitted successfully", "success");
+            if (data.success || data.Success) {
+                deleteDraft(activeDraftId);
+                newForm();
+            }
             onClose();
         } catch (err) {
             Swal.fire("Error", err.message, "error");
@@ -489,8 +450,6 @@ export default function AddLoanApplicationDrawer({ open, onClose }) {
             setLoading(false);
         }
     };
-
-
 
     useEffect(() => {
         const net = Number(form.LoanRegistrationNetIncome) || 0;
@@ -509,7 +468,6 @@ export default function AddLoanApplicationDrawer({ open, onClose }) {
         form.LoanRegistrationTotalDeduction,
     ]);
 
-
     const totalGuaranteedAmount = useMemo(() => {
         return guarantors.reduce(
             (sum, g) => sum + (Number(g.AmountGuaranteed) || 0),
@@ -517,37 +475,60 @@ export default function AddLoanApplicationDrawer({ open, onClose }) {
         );
     }, [guarantors]);
 
-
-
-    // Qualifying Amount (Savings × 4 + Boosted Reference if any)
     const qualifyingAmount = useMemo(() => {
-        const base = totalSavings;
-        const boostedAmount = Number(form.Reference) || 0;
-        return base + boostedAmount;
-    }, [totalSavings, form.Reference]);
+        return (memberDeposits + (Number(form.Reference) || 0)) * 4;
+    }, [memberDeposits, form.Reference]);
 
-
-    // Total Loan Book Balance (Loans only)
+    // FIXED: Use correct field names for loan balance
     const totalBookBalance = useMemo(() => {
         return selectedAccounts
-            .filter(acc => acc.CustomerAccountTypeProductCodeDescription === "Loan")
-            .reduce((sum, acc) => sum + (Number(acc.BookBalance) || 0), 0);
+            .filter(acc => acc.accountType === "Loan")
+            .reduce((sum, acc) => sum + (Number(acc.balance) || 0), 0);
     }, [selectedAccounts]);
 
-    // Remaining Eligible Amount
     const remainingEligibleAmount = useMemo(() => {
         return Math.max(qualifyingAmount - totalBookBalance, 0);
     }, [totalBookBalance, qualifyingAmount]);
 
+    // FIXED: Deduplicate accounts using accountId
+    const uniqueAccounts = useMemo(() => {
+        const seen = new Set();
+        return selectedAccounts.filter(acc => {
+            const id = acc.accountId || acc.Id || acc.id;
+            if (seen.has(id)) return false;
+            seen.add(id);
+            return true;
+        });
+    }, [selectedAccounts]);
 
+    // Format date to DD/MM/YYYY for display
+    const formatDateForDisplay = (dateString) => {
+        if (!dateString) return "";
+        const date = new Date(dateString);
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const year = date.getFullYear();
+        return `${day}/${month}/${year}`;
+    };
 
+    // Parse date from DD/MM/YYYY to YYYY-MM-DD for storage
+    const parseDateFromDisplay = (dateString) => {
+        if (!dateString) return "";
+        const parts = dateString.split('/');
+        if (parts.length === 3) {
+            return `${parts[2]}-${parts[1]}-${parts[0]}`;
+        }
+        return dateString;
+    };
 
-    console.log(selectedAccounts);
+    const handleDateChange = (e) => {
+        const displayDate = e.target.value;
+        const isoDate = parseDateFromDisplay(displayDate);
+        if (isoDate && !isNaN(new Date(isoDate).getTime())) {
+            update("receivedDate", isoDate);
+        }
+    };
 
-
-
-    console.log("Form Data:", form);
-    console.log("Guarantors:", guarantors)
     return (
         <AnimatePresence>
             {open && (
@@ -558,7 +539,7 @@ export default function AddLoanApplicationDrawer({ open, onClose }) {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 0.4 }}
                         exit={{ opacity: 0 }}
-                        onClick={onClose}
+                        onClick={handleSafeClose}
                     />
 
                     {/* DRAWER */}
@@ -571,26 +552,119 @@ export default function AddLoanApplicationDrawer({ open, onClose }) {
                     >
                         {/* HEADER */}
                         <div className="p-4 flex justify-between items-center bg-indigo-700 rounded-2xl m-2">
-                            <h2 className="font-bold text-xl text-white">
+                            <h2 className="font-bold text-xl text-white flex items-center gap-3">
                                 Loan Application
+                                {activeDraft && (
+                                    <span className="text-xs font-normal bg-yellow-400 text-yellow-900 px-2 py-1 rounded-full max-w-[200px] truncate">
+                                        {activeDraft.label}
+                                    </span>
+                                )}
                             </h2>
-                            <Button variant="outline" onClick={onClose}>
-                                Close
-                            </Button>
+                            <div className="flex gap-2 items-center">
+                                <button
+                                    onClick={() => setDraftsOpen(o => !o)}
+                                    className="relative flex items-center gap-1 text-sm bg-indigo-500 hover:bg-indigo-400 text-white px-3 py-1.5 rounded-lg"
+                                >
+                                    Drafts
+                                    {drafts.length > 0 && (
+                                        <span className="bg-yellow-400 text-yellow-900 text-xs font-bold px-1.5 rounded-full">
+                                            {drafts.length}
+                                        </span>
+                                    )}
+                                </button>
+                                {hasDraft && (
+                                    <Button
+                                        variant="outline"
+                                        className="border-yellow-500 text-yellow-500 hover:bg-yellow-500 hover:text-white text-xs"
+                                        onClick={handleSaveDraft}
+                                    >
+                                        {activeDraftId ? "Saved ✓" : "Save Draft"}
+                                    </Button>
+                                )}
+                                {hasDraft && !activeDraftId && (
+                                    <Button
+                                        variant="outline"
+                                        className="border-gray-500 text-gray-400 hover:bg-gray-600 hover:text-gray-100 text-xs"
+                                        onClick={() => { newForm(); }}
+                                    >
+                                        New Form
+                                    </Button>
+                                )}
+                                <Button variant="outline" onClick={handleSafeClose}>
+                                    Close
+                                </Button>
+                            </div>
                         </div>
+
+                        {/* DRAFTS PANEL */}
+                        {draftsOpen && (
+                            <div className="mx-4 mb-2 border border-indigo-200 rounded-xl bg-indigo-50 shadow-inner overflow-hidden">
+                                <div className="flex justify-between items-center px-4 py-2 bg-indigo-100 border-b border-indigo-200">
+                                    <span className="font-semibold text-indigo-800 text-sm">Saved Drafts</span>
+                                    <button
+                                        onClick={() => { handleSaveDraft(); }}
+                                        className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded-lg"
+                                    >
+                                        + Save Current as Draft
+                                    </button>
+                                </div>
+                                {drafts.length === 0 ? (
+                                    <p className="text-center text-gray-500 text-sm py-4">No drafts saved yet.</p>
+                                ) : (
+                                    <ul className="max-h-56 overflow-y-auto divide-y divide-indigo-100">
+                                        {drafts.map((d, idx) => (
+                                            <li
+                                                key={d.id || `draft-${idx}`}
+                                                className={`flex items-center justify-between px-4 py-2 text-sm transition ${activeDraftId === d.id ? "bg-indigo-100" : "hover:bg-white"}`}
+                                            >
+                                                <div className="flex-1 min-w-0 pr-4">
+                                                    <p className="font-medium text-indigo-900 truncate">{d.label}</p>
+                                                    <p className="text-xs text-gray-500">
+                                                        {d.lastSaved ? new Date(d.lastSaved).toLocaleString() : "—"}
+                                                        {activeDraftId === d.id && (
+                                                            <span className="ml-2 text-indigo-600 font-semibold">● Active</span>
+                                                        )}
+                                                    </p>
+                                                </div>
+                                                <div className="flex gap-2 shrink-0">
+                                                    <button
+                                                        onClick={() => { loadDraft(d.id); setDraftsOpen(false); }}
+                                                        className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white px-2 py-1 rounded"
+                                                    >
+                                                        Load
+                                                    </button>
+                                                    <button
+                                                        onClick={() => {
+                                                            Swal.fire({
+                                                                title: "Delete draft?",
+                                                                text: `"${d.label}" will be permanently removed.`,
+                                                                icon: "warning",
+                                                                showCancelButton: true,
+                                                                confirmButtonColor: "#d33",
+                                                                confirmButtonText: "Delete",
+                                                            }).then(r => { if (r.isConfirmed) deleteDraft(d.id); });
+                                                        }}
+                                                        className="text-xs bg-red-100 hover:bg-red-500 hover:text-white text-red-600 px-2 py-1 rounded"
+                                                    >
+                                                        Delete
+                                                    </button>
+                                                </div>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                )}
+                            </div>
+                        )}
 
                         {/* CONTENT */}
                         <div className="p-6 overflow-y-auto h-[88vh]">
-
                             <div className="bg-gray-200 rounded-lg p-3">
                                 {/* CUSTOMER DETAILS */}
                                 <Card className="p-4 mb-6">
                                     <h3 className="font-semibold mb-4">Applicant Details</h3>
 
-                                    {/* SEARCHABLE DATALIST */}
                                     <div className="mb-4">
                                         <Label>Select Customer</Label>
-
                                         <div className="flex gap-2">
                                             <Input
                                                 placeholder="Select customer"
@@ -600,8 +674,9 @@ export default function AddLoanApplicationDrawer({ open, onClose }) {
                                             <Button
                                                 type="button"
                                                 onClick={() => setCustomerModalOpen(true)}
+                                                disabled={isLoadingCustomers}
                                             >
-                                                Select
+                                                {isLoadingCustomers ? "Loading..." : "Select"}
                                             </Button>
                                         </div>
                                     </div>
@@ -620,61 +695,76 @@ export default function AddLoanApplicationDrawer({ open, onClose }) {
                                 <Card className="p-4 mb-6">
                                     <div className="flex justify-between items-center bg-indigo-600 text-white rounded-md px-5 py-3 mb-4">
                                         <h3 className="font-semibold">Member Accounts & Balances</h3>
-                                        <div>
-                                            Total Savings <span className="bg-indigo-500 px-4 py-2 rounded-md ">{(memberDeposits + Number(form.Reference)).toLocaleString()}</span>
-                                        </div>
-
                                     </div>
 
-
-                                    {selectedAccounts.length === 0 && (
-                                        <p className="text-sm text-gray-50">No accounts found.</p>
+                                    {uniqueAccounts.length === 0 && (
+                                        <p className="text-sm text-gray-500">No accounts found. Please select a customer.</p>
                                     )}
 
                                     <div className="max-h-64 overflow-y-auto bg-gray-200 p-4 rounded-lg">
-                                        {selectedAccounts.map(acc => (
-                                            <div
-                                                key={acc.Id}
-                                                className="border rounded-lg p-3 mb-2 flex justify-between items-center bg-gray-50"
-                                            >
-                                                <div>
-                                                    {/* <p className="font-medium">
-                                                        {acc.FullAccountNumber}
-                                                    </p> */}
-                                                    <p className="text-xs text-gray-500">
-                                                        {acc.CustomerAccountTypeTargetProductDescription}
-                                                        {" · "}
-                                                        {acc.CustomerAccountTypeProductCodeDescription}
-                                                    </p>
-                                                </div>
-
-                                                <div className="text-right">
-                                                    {acc.CustomerAccountTypeProductCodeDescription === "Loan" && (
-                                                        <p className="text-sm text-red-700">
-                                                            Book: <b>{acc.BookBalance.toLocaleString()}</b>
-                                                        </p>)}
-
-                                                    {acc.CustomerAccountTypeProductCodeDescription === "Savings" && (
-                                                        <p className="text-sm text-green-700">
-                                                            Available: <b>{acc.AvailableBalance.toLocaleString()}</b>
-                                                        </p>)}
-                                                </div>
+                                        {uniqueAccounts.length === 0 ? (
+                                            <div className="text-center py-8 text-gray-400">
+                                                <p>No accounts available</p>
+                                                <p className="text-xs mt-1">Select a customer to view their accounts</p>
                                             </div>
-                                        ))}
+                                        ) : (
+                                            uniqueAccounts
+                                                .filter(acc => {
+                                                    const desc = (acc.productDescription || "").toLowerCase();
+                                                    if (
+                                                        desc.includes("entrance") ||
+                                                        desc.includes("share capital") ||
+                                                        desc.includes("benevolent") ||
+                                                        desc.includes("benovelent")
+                                                    ) return false;
+                                                    return true;
+                                                })
+                                                .map((acc, idx) => {
+                                                    const uniqueKey = acc.accountId || acc.Id || acc.id || `account-${idx}`;
+                                                    const balance = Number(acc.balance || 0);
+                                                    const isLoan = acc.accountType === "Loan";
+                                                    const isSavings = acc.accountType === "Savings";
+                                                    const productDesc = acc.productDescription || "N/A";
+                                                    
+                                                    return (
+                                                        <div
+                                                            key={uniqueKey}
+                                                            className="border rounded-lg p-3 mb-2 flex justify-between items-center bg-gray-50"
+                                                        >
+                                                            <div>
+                                                                <p className="text-xs text-gray-500">
+                                                                    {productDesc}
+                                                                    {acc.productCode && ` · Code: ${acc.productCode}`}
+                                                                </p>
+                                                                <p className="text-xs text-gray-400">
+                                                                    {acc.accountType || "Unknown Type"}
+                                                                    {acc.accountStatus === 0 ? " · Active" : " · Inactive"}
+                                                                </p>
+                                                            </div>
+
+                                                            <div className="text-right">
+                                                                {isLoan && (
+                                                                    <p className={`text-sm ${balance < 0 ? 'text-red-700' : 'text-red-500'}`}>
+                                                                        Balance: <b>{balance.toLocaleString()}</b>
+                                                                    </p>
+                                                                )}
+
+                                                                {isSavings && (
+                                                                    <p className={`text-sm ${balance > 0 ? 'text-green-700' : 'text-gray-400'}`}>
+                                                                        Balance: <b>{balance.toLocaleString()}</b>
+                                                                    </p>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })
+                                        )}
                                     </div>
                                 </Card>
 
-
                                 {/* LOAN DETAILS */}
                                 <Card className="p-4 mb-6">
-
                                     <div className="flex justify-between items-center bg-indigo-600 text-white rounded-md px-2 py-2 mb-4">
-
-                                        {/* <h2 className="font-semibold">Loan Details</h2> */}
-                                        {/* <div className="flex justify-between items-center gap-4">
-                                            <div className="bg-indigo-700 p-3 rounded-lg"> Qualifying Amount  <span className="bg-indigo-500 px-4 py-2 rounded-md ">{totalSavings.toLocaleString()}</span> </div>
-                                            {Number(form.Reference) > 0 && <div className="bg-gray-700 p-3 rounded-lg"><span>New Loan Limit <span className="bg-indigo-500 px-4 py-2 rounded-md ">   {((memberDeposits + Number(form.Reference)) * 4).toLocaleString()}</span></span></div>}
-                                        </div> */}
                                         <h1 className="font-semibold px-4">Loan Details</h1>
                                         <div className="flex gap-4 justify-between items-center bg-indigo-600 text-white rounded-md px-1 py-1 mb-1">
                                             <div className="flex gap-4">
@@ -700,14 +790,11 @@ export default function AddLoanApplicationDrawer({ open, onClose }) {
                                                 </div>
                                             </div>
                                         </div>
-
                                     </div>
 
                                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-
                                         <div className="md:col-span-4">
                                             <Label>Select Loan Product</Label>
-
                                             <div className="flex gap-2">
                                                 <Input
                                                     placeholder="Select loan product"
@@ -722,7 +809,6 @@ export default function AddLoanApplicationDrawer({ open, onClose }) {
                                                 </Button>
                                             </div>
                                         </div>
-
 
                                         <div>
                                             <Label>Loan Product</Label>
@@ -741,22 +827,109 @@ export default function AddLoanApplicationDrawer({ open, onClose }) {
                                         </div>
 
                                         <div>
-                                            <Label>Amount Applied</Label>
+                                            <Label>
+                                                Amount Applied
+                                                {form.LoanRegistrationMaximumAmount > 0 && (
+                                                    <span className="ml-2 text-xs text-gray-500 font-normal">
+                                                        max {Number(form.LoanRegistrationMaximumAmount).toLocaleString()}
+                                                    </span>
+                                                )}
+                                            </Label>
                                             <Input
-                                                type="number"
-                                                value={form.AmountApplied}
-                                                onChange={e => update("AmountApplied", Number(e.target.value))}
+                                                inputMode="numeric"
+                                                value={form.AmountApplied ? Number(form.AmountApplied).toLocaleString() : ""}
+                                                onChange={e => {
+                                                    const raw = e.target.value.replace(/,/g, "");
+                                                    if (!/^\d*$/.test(raw)) return;
+                                                    const val = raw === "" ? 0 : Number(raw);
+                                                    
+                                                    if (form.LoanRegistrationMaximumAmount > 0 && val > form.LoanRegistrationMaximumAmount) {
+                                                        Swal.fire(
+                                                            "Amount Exceeded",
+                                                            `Amount applied cannot exceed the maximum of ${Number(form.LoanRegistrationMaximumAmount).toLocaleString()}`,
+                                                            "warning"
+                                                        );
+                                                        return;
+                                                    }
+                                                    
+                                                    // Check against qualifying amount with confirmation
+                                                    if (remainingEligibleAmount > 0 && val > remainingEligibleAmount) {
+                                                        setExcessConfirmed(false);
+                                                        
+                                                        Swal.fire({
+                                                            title: "⚠️ Amount Exceeds Eligibility",
+                                                            html: `
+                                                                <div style="text-align: left;">
+                                                                    <p><strong>Amount Applied:</strong> ${val.toLocaleString()} KSH</p>
+                                                                    <p><strong>Qualifying Amount:</strong> ${qualifyingAmount.toLocaleString()} KSH</p>
+                                                                    <p><strong>Current Loan Book:</strong> ${totalBookBalance.toLocaleString()} KSH</p>
+                                                                    <p><strong>Remaining Eligibility:</strong> ${remainingEligibleAmount.toLocaleString()} KSH</p>
+                                                                    <hr style="margin: 15px 0;">
+                                                                    <p style="color: #e74c3c;">The amount you're applying for exceeds your remaining eligible amount by ${(val - remainingEligibleAmount).toLocaleString()} KSH.</p>
+                                                                    <p>Do you still want to proceed with this application?</p>
+                                                                </div>
+                                                            `,
+                                                            icon: "warning",
+                                                            showCancelButton: true,
+                                                            confirmButtonText: "Yes, Proceed Anyway",
+                                                            cancelButtonText: "No, Adjust Amount",
+                                                            confirmButtonColor: "#e74c3c",
+                                                            cancelButtonColor: "#4f46e5",
+                                                            reverseButtons: true
+                                                        }).then((result) => {
+                                                            if (result.isConfirmed) {
+                                                                setExcessConfirmed(true);
+                                                                update("AmountApplied", val);
+                                                                Swal.fire({
+                                                                    title: "Proceeding with Over-limit Application",
+                                                                    text: "Please note that this application may require additional approval and review.",
+                                                                    icon: "info",
+                                                                    timer: 2500,
+                                                                    showConfirmButton: false
+                                                                });
+                                                            }
+                                                        });
+                                                        return;
+                                                    }
+                                                    
+                                                    setExcessConfirmed(false);
+                                                    update("AmountApplied", val);
+                                                }}
                                             />
+                                            <p className="text-xs text-gray-500 mt-1">
+                                                Maximum eligible: {remainingEligibleAmount.toLocaleString()} KSH
+                                            </p>
+                                            {form.AmountApplied > remainingEligibleAmount && remainingEligibleAmount > 0 && (
+                                                <p className="text-xs text-red-600 mt-1">
+                                                    ⚠️ Warning: Amount exceeds your eligible limit by {(form.AmountApplied - remainingEligibleAmount).toLocaleString()} KSH
+                                                </p>
+                                            )}
                                         </div>
 
                                         <div>
-                                            <Label>Loan Term (Months)</Label>
+                                            <Label>
+                                                Loan Term (Months)
+                                                {maxTermMonths > 0 && (
+                                                    <span className="ml-2 text-xs text-gray-500 font-normal">
+                                                        max {maxTermMonths}
+                                                    </span>
+                                                )}
+                                            </Label>
                                             <Input
                                                 type="number"
                                                 value={form.LoanRegistrationTermInMonths}
-                                                onChange={e =>
-                                                    update("LoanRegistrationTermInMonths", Number(e.target.value))
-                                                }
+                                                onChange={e => {
+                                                    const val = Number(e.target.value);
+                                                    if (maxTermMonths > 0 && val > maxTermMonths) {
+                                                        Swal.fire(
+                                                            "Term Exceeded",
+                                                            `Loan term cannot exceed ${maxTermMonths} months for this product`,
+                                                            "warning"
+                                                        );
+                                                        return;
+                                                    }
+                                                    update("LoanRegistrationTermInMonths", val);
+                                                }}
                                             />
                                         </div>
 
@@ -764,30 +937,8 @@ export default function AddLoanApplicationDrawer({ open, onClose }) {
                                             <Label>Interest Rate (%)</Label>
                                             <Input
                                                 type="number"
+                                                disabled
                                                 value={form.LoanInterestAnnualPercentageRate}
-                                                onChange={e =>
-                                                    update("LoanInterestAnnualPercentageRate", Number(e.target.value))
-                                                }
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <Label>Interest Charge Mode</Label>
-                                            <Input
-                                                value={form.LoanInterestChargeModeDescription}
-                                                onChange={e =>
-                                                    update("LoanInterestChargeModeDescription", e.target.value)
-                                                }
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <Label>Interest Calculation</Label>
-                                            <Input
-                                                value={form.LoanInterestCalculationModeDescription}
-                                                onChange={e =>
-                                                    update("LoanInterestCalculationModeDescription", e.target.value)
-                                                }
                                             />
                                         </div>
 
@@ -795,9 +946,7 @@ export default function AddLoanApplicationDrawer({ open, onClose }) {
                                             <Label>Loan Category</Label>
                                             <Input
                                                 value={form.LoanRegistrationLoanProductCategoryDescription}
-                                                onChange={e =>
-                                                    update("LoanRegistrationLoanProductCategoryDescription", e.target.value)
-                                                }
+                                                disabled
                                             />
                                         </div>
 
@@ -805,21 +954,8 @@ export default function AddLoanApplicationDrawer({ open, onClose }) {
                                             <Label>Maximum Amount</Label>
                                             <Input
                                                 type="number"
+                                                disabled
                                                 value={form.LoanRegistrationMaximumAmount}
-                                                onChange={e =>
-                                                    update("LoanRegistrationMaximumAmount", Number(e.target.value))
-                                                }
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <Label>Minimum Interest Amount</Label>
-                                            <Input
-                                                type="number"
-                                                value={form.LoanRegistrationMinimumInterestAmount}
-                                                onChange={e =>
-                                                    update("LoanRegistrationMinimumInterestAmount", Number(e.target.value))
-                                                }
                                             />
                                         </div>
 
@@ -827,10 +963,8 @@ export default function AddLoanApplicationDrawer({ open, onClose }) {
                                             <Label>Investments Multiplier</Label>
                                             <Input
                                                 type="number"
+                                                disabled
                                                 value={form.LoanRegistrationInvestmentsMultiplier}
-                                                onChange={e =>
-                                                    update("LoanRegistrationInvestmentsMultiplier", Number(e.target.value))
-                                                }
                                             />
                                         </div>
 
@@ -838,9 +972,7 @@ export default function AddLoanApplicationDrawer({ open, onClose }) {
                                             <Label>Standing Order Trigger</Label>
                                             <Input
                                                 value={form.LoanRegistrationStandingOrderTriggerDescription}
-                                                onChange={e =>
-                                                    update("LoanRegistrationStandingOrderTriggerDescription", e.target.value)
-                                                }
+                                                disabled
                                             />
                                         </div>
 
@@ -848,10 +980,8 @@ export default function AddLoanApplicationDrawer({ open, onClose }) {
                                             <Label>Min Guarantors</Label>
                                             <Input
                                                 type="number"
+                                                disabled
                                                 value={form.LoanRegistrationMinimumGuarantors}
-                                                onChange={e =>
-                                                    update("LoanRegistrationMinimumGuarantors", Number(e.target.value))
-                                                }
                                             />
                                         </div>
 
@@ -859,10 +989,8 @@ export default function AddLoanApplicationDrawer({ open, onClose }) {
                                             <Label>Max Guarantees</Label>
                                             <Input
                                                 type="number"
+                                                disabled
                                                 value={form.LoanRegistrationMaximumGuarantees}
-                                                onChange={e =>
-                                                    update("LoanRegistrationMaximumGuarantees", Number(e.target.value))
-                                                }
                                             />
                                         </div>
 
@@ -874,14 +1002,16 @@ export default function AddLoanApplicationDrawer({ open, onClose }) {
                                             />
                                         </div>
                                         <div>
-                                            <Label>Received Date</Label>
+                                            <Label>Application Date (DD/MM/YYYY)</Label>
                                             <Input
-                                                type="date"
-                                                value={form.receivedDate}
-                                                onChange={(e) => update("receivedDate", e.target.value)}
+                                                type="text"
+                                                placeholder="DD/MM/YYYY"
+                                                value={formatDateForDisplay(form.receivedDate)}
+                                                onChange={handleDateChange}
                                             />
                                         </div>
                                     </div>
+                                    
                                     <div>
                                         <div className="flex items-center gap-2 p-2">
                                             <input
@@ -889,7 +1019,6 @@ export default function AddLoanApplicationDrawer({ open, onClose }) {
                                                 checked={boosted}
                                                 onChange={(e) => {
                                                     const isBoosted = e.target.checked;
-
                                                     setBoosted(isBoosted);
                                                     setForm(prev => ({
                                                         ...prev,
@@ -902,7 +1031,6 @@ export default function AddLoanApplicationDrawer({ open, onClose }) {
                                                     }));
                                                 }}
                                             />
-
                                             <Label>Is Boosted Loan?</Label> <br />
                                         </div>
                                         <div className="grid grid-cols-3 gap-3">
@@ -913,59 +1041,77 @@ export default function AddLoanApplicationDrawer({ open, onClose }) {
                                                         type="number"
                                                         placeholder="Enter boosted amount"
                                                         value={form.Reference}
-                                                        onChange={(e) => update("Reference", e.target.value)}
+                                                        onChange={(e) => {
+                                                            const val = Number(e.target.value);
+                                                            if (form.AmountApplied > 0 && val > Number(form.AmountApplied)) {
+                                                                Swal.fire(
+                                                                    "Amount Exceeded",
+                                                                    `Boost amount cannot exceed the amount applied (${Number(form.AmountApplied).toLocaleString()})`,
+                                                                    "warning"
+                                                                );
+                                                                return;
+                                                            }
+                                                            update("Reference", e.target.value);
+                                                        }}
                                                     />
                                                 </div>
                                             )}
 
+                                            {boosted && (
+                                                <div>
+                                                    <Label>Remarks</Label>
+                                                    <Input
+                                                        className="w-full"
+                                                        value={form.Remarks}
+                                                        readOnly={boosted}
+                                                        onChange={e => update("Remarks", e.target.value)}
+                                                    />
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div>
+                                            <div>
+                                                <div className="flex items-center gap-2 p-2">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={hasOffset}
+                                                        onChange={(e) => {
+                                                            const checked = e.target.checked;
+                                                            setHasOffset(checked);
+                                                            if (!checked) {
+                                                                setSelectedParentLoan(null);
+                                                                update("parentId", "");
+                                                            }
+                                                        }}
+                                                    />
+                                                    <Label>Loan Refinance</Label>
+                                                </div>
 
-                                            {
-                                                boosted && (
-                                                    <div>
-                                                        <Label>Remarks</Label>
+                                                {hasOffset && (
+                                                    <div className="flex gap-2 mt-1">
                                                         <Input
-                                                            className="w-full"
-                                                            value={form.Remarks}
-                                                            readOnly={boosted}
-                                                            onChange={e => update("Remarks", e.target.value)}
+                                                            value={selectedParentLoan?.LoanProductDescription || ""}
+                                                            placeholder="Select Loan to Offset"
+                                                            readOnly
                                                         />
-
+                                                        <Button
+                                                            type="button"
+                                                            onClick={() => setParentLoanModalOpen(true)}
+                                                        >
+                                                            Select
+                                                        </Button>
                                                     </div>
                                                 )}
-
-
-                                            <div>
-                                                <Label>Loan to Offset</Label>
-
-                                                <div className="flex gap-2">
-                                                    <Input
-                                                        value={selectedParentLoan?.LoanProductDescription || ""}
-                                                        placeholder="Select Loan to Offset"
-                                                        readOnly
-                                                    />
-
-                                                    <Button
-                                                        type="button"
-                                                        onClick={() => setParentLoanModalOpen(true)}
-                                                    >
-                                                        Select
-                                                    </Button>
-                                                </div>
                                             </div>
-
-
                                         </div>
                                     </div>
                                 </Card>
-
-
 
                                 {/* Loan Sector */}
                                 <Card className="p-4 mb-6">
                                     <h3 className="font-semibold mb-4">Loan Sector</h3>
 
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        {/* SECTOR */}
                                         <div>
                                             <Label>Loan Sector</Label>
                                             <select
@@ -973,19 +1119,18 @@ export default function AddLoanApplicationDrawer({ open, onClose }) {
                                                 value={form.SectorCode}
                                                 onChange={(e) => {
                                                     update("SectorCode", e.target.value);
-                                                    update("SubSectorCode", ""); // reset subsector
+                                                    update("SubSectorCode", "");
                                                 }}
                                             >
                                                 <option value="">Select Sector</option>
-                                                {loanSectors.map(sector => (
-                                                    <option key={sector.Id} value={sector.SectorCode}>
+                                                {loanSectors.map((sector, idx) => (
+                                                    <option key={sector.Id || `sector-${idx}`} value={sector.SectorCode}>
                                                         {sector.SectorCode} - {sector.SectorName}
                                                     </option>
                                                 ))}
                                             </select>
                                         </div>
 
-                                        {/* SUB SECTOR */}
                                         <div>
                                             <Label>Loan Sub Sector</Label>
                                             <select
@@ -995,84 +1140,15 @@ export default function AddLoanApplicationDrawer({ open, onClose }) {
                                                 disabled={!form.SectorCode}
                                             >
                                                 <option value="">Select Sub Sector</option>
-
-                                                {filteredSubSectors.map(sub => (
-                                                    <option key={sub.Id} value={sub.SubSectorCode}>
+                                                {filteredSubSectors.map((sub, idx) => (
+                                                    <option key={sub.Id || `subsector-${idx}`} value={sub.SubSectorCode}>
                                                         {sub.SubSectorCode} - {sub.SubSectorName}
                                                     </option>
                                                 ))}
                                             </select>
-
                                         </div>
-
                                     </div>
                                 </Card>
-
-
-
-
-
-                                {/* SALARY DETAILS
-                                <Card className="p-4 mb-6">
-                                    <h3 className="font-semibold mb-4">Salary Details</h3>
-
-                                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                                        <div>
-                                            <Label>Net Income</Label>
-                                            <Input
-                                                type="number"
-                                                value={form.LoanRegistrationNetIncome}
-                                                onChange={e =>
-                                                    update("LoanRegistrationNetIncome", Number(e.target.value))
-                                                }
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <Label>Total Allowance</Label>
-                                            <Input
-                                                type="number"
-                                                value={form.LoanRegistrationTotalAllowance}
-                                                onChange={e =>
-                                                    update("LoanRegistrationTotalAllowance", Number(e.target.value))
-                                                }
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <Label>Total Deduction</Label>
-                                            <Input
-                                                type="number"
-                                                value={form.LoanRegistrationTotalDeduction}
-                                                onChange={e =>
-                                                    update("LoanRegistrationTotalDeduction", Number(e.target.value))
-                                                }
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <Label>Total Income</Label>
-                                            <Input
-                                                type="number"
-                                                value={form.LoanRegistrationTotalIncome}
-                                                readOnly
-                                                className="bg-gray-100 cursor-not-allowed font-semibold"
-                                            />
-                                        </div>
-
-                                    </div>
-                                </Card> */}
-
-
-
-
-
-
-
-
-
-
-
 
                                 {/* GUARANTORS */}
                                 <Card className="p-4">
@@ -1084,13 +1160,8 @@ export default function AddLoanApplicationDrawer({ open, onClose }) {
                                         </div>
                                     </div>
 
-
                                     {guarantors.map((g, index) => (
-
-                                        <div key={index} className="border rounded-lg p-4 mb-4">
-
-
-
+                                        <div key={g.CustomerId || `guarantor-${index}`} className="border rounded-lg p-4 mb-4">
                                             <div className="flex justify-between mb-2">
                                                 <h4 className="font-medium">
                                                     Guarantor {index + 1}
@@ -1108,11 +1179,8 @@ export default function AddLoanApplicationDrawer({ open, onClose }) {
                                             </div>
 
                                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-
-                                                {/* SEARCH GUARANTOR */}
                                                 <div className="md:col-span-3">
                                                     <Label>Select Guarantor</Label>
-
                                                     <div className="flex gap-2">
                                                         <Input
                                                             placeholder="Select guarantor"
@@ -1137,7 +1205,7 @@ export default function AddLoanApplicationDrawer({ open, onClose }) {
                                                     />
                                                 </div>
                                                 <div>
-                                                    <Label>ID Numbe</Label>
+                                                    <Label>ID Number</Label>
                                                     <Input
                                                         placeholder="ID Number"
                                                         value={g.IndividualIdentityCardNumber}
@@ -1171,13 +1239,45 @@ export default function AddLoanApplicationDrawer({ open, onClose }) {
                                                 </div>
 
                                                 <div>
-                                                    <Label>Amount</Label>
+                                                    <Label>
+                                                        Amount
+                                                        {g.MemberDeposits > 0 && (
+                                                            <span className="ml-2 text-xs text-green-700 font-normal">
+                                                                (Deposits: {Number(g.MemberDeposits).toLocaleString()})
+                                                            </span>
+                                                        )}
+                                                    </Label>
                                                     <Input
                                                         placeholder="Amount Guaranteed"
-                                                        type="number"
-                                                        value={g.AmountGuaranteed}
+                                                        inputMode="numeric"
+                                                        value={g.AmountGuaranteed ? Number(g.AmountGuaranteed).toLocaleString() : ""}
                                                         onChange={(e) => {
-                                                            const value = Number(e.target.value) || 0;
+                                                            const raw = e.target.value.replace(/,/g, "");
+                                                            if (!/^\d*$/.test(raw)) return;
+                                                            const value = raw === "" ? 0 : Number(raw);
+
+                                                            const checkGuarantorDeposit = () => {
+                                                                if (g.MemberDeposits > 0 && value > g.MemberDeposits) {
+                                                                    Swal.fire({
+                                                                        title: "Insufficient Deposits",
+                                                                        html: `<p>This guarantor only has <b>${Number(g.MemberDeposits).toLocaleString()} KSH</b> in deposits.</p>
+                                                                               <p>Would you like to proceed with the maximum amount of <b>${Number(g.MemberDeposits).toLocaleString()} KSH</b> instead?</p>`,
+                                                                        icon: "warning",
+                                                                        showCancelButton: true,
+                                                                        confirmButtonText: "Yes, use max amount",
+                                                                        cancelButtonText: "No, let me change",
+                                                                        confirmButtonColor: "#4f46e5"
+                                                                    }).then((result) => {
+                                                                        if (result.isConfirmed) {
+                                                                            updateGuarantor(index, "AmountGuaranteed", g.MemberDeposits);
+                                                                        }
+                                                                    });
+                                                                    return false;
+                                                                }
+                                                                return true;
+                                                            };
+
+                                                            if (!checkGuarantorDeposit()) return;
 
                                                             const otherGuarantorsTotal = guarantors.reduce(
                                                                 (sum, g, i) =>
@@ -1196,7 +1296,6 @@ export default function AddLoanApplicationDrawer({ open, onClose }) {
 
                                                             updateGuarantor(index, "AmountGuaranteed", value);
                                                         }}
-
                                                     />
                                                 </div>
                                             </div>
@@ -1209,32 +1308,72 @@ export default function AddLoanApplicationDrawer({ open, onClose }) {
                                 </Card>
                             </div>
 
-
-
-
-
-
                             {/* ACTIONS */}
-                            <div className="flex justify-end mt-8">
+                            <div className="flex justify-between items-center mt-8">
+                                <div className="flex gap-2">
+                                    <Button
+                                        variant="outline"
+                                        onClick={handleSaveDraft}
+                                        disabled={!hasDraft}
+                                        className="border-indigo-400 text-indigo-700 hover:bg-indigo-50"
+                                    >
+                                        {activeDraftId ? "Draft Saved ✓" : "Save as Draft"}
+                                    </Button>
+                                    {hasDraft && (
+                                        <Button
+                                            variant="outline"
+                                            onClick={() => {
+                                                Swal.fire({
+                                                    title: "Start a new form?",
+                                                    text: activeDraftId
+                                                        ? "Current form is saved in drafts. You can reload it later."
+                                                        : "Unsaved changes will be lost.",
+                                                    icon: "question",
+                                                    showCancelButton: true,
+                                                    confirmButtonColor: "#4f46e5",
+                                                    confirmButtonText: "New Form",
+                                                }).then(r => { if (r.isConfirmed) newForm(); });
+                                            }}
+                                            className="border-gray-400 text-gray-600 hover:bg-gray-50"
+                                        >
+                                            New Form
+                                        </Button>
+                                    )}
+                                </div>
                                 <Button onClick={handleSubmit} disabled={loading}>
                                     {loading ? "Submitting..." : "Submit Loan Application"}
                                 </Button>
                             </div>
-
-
                         </div>
                     </motion.div>
                 </>
             )}
+            
             <CustomerSelectModal
                 open={customerModalOpen}
                 onClose={() => setCustomerModalOpen(false)}
                 customers={customers}
                 onSelect={(member) => {
-                    const c = member.Customer;
-
-                    setSelectedAccounts(member.Accounts || []);
-
+                    // Handle flat structure - extract customer data
+                    const c = {
+                        Id: member.id || member.Id || '',
+                        IndividualFirstName: member.firstName || member.IndividualFirstName || '',
+                        IndividualLastName: member.lastName || member.IndividualLastName || '',
+                        IndividualIdentityCardNumber: member.idNumber || member.IndividualIdentityCardNumber || '',
+                        Reference3: member.payrollNumber || member.Reference3 || '',
+                        PersonalIdentificationNumber: member.personalIdentificationNumber || member.PersonalIdentificationNumber || '',
+                        AddressMobileLine: member.address?.mobileLine || member.AddressMobileLine || '',
+                        AddressEmail: member.address?.email || member.AddressEmail || '',
+                        Reference2: member.memberNumber || member.Reference2 || '',
+                    };
+                    
+                    // Get accounts from the member
+                    const accounts = member.accounts || member.Accounts || [];
+                    
+                    // Set selected accounts
+                    setSelectedAccounts(accounts);
+                    
+                    // Update form with customer details
                     setForm(prev => ({
                         ...prev,
                         CustomerId: c.Id,
@@ -1246,46 +1385,38 @@ export default function AddLoanApplicationDrawer({ open, onClose }) {
                         CustomerAddressEmail: c.AddressEmail || "",
                         Reference: "",
                     }));
-
+                    
+                    // Reset parent loan selection
                     setSelectedParentLoan(null);
                     update("parentId", "");
                 }}
+                onSearch={handleCustomerSearch}
             />
-
 
             <LoanProductSelectModal
                 open={loanProductModalOpen}
                 onClose={() => setLoanProductModalOpen(false)}
                 loanProducts={loanProducts}
                 onSelect={(selected) => {
-
                     setForm(prev => ({
                         ...prev,
-
                         LoanProductId: selected.Id,
                         LoanProductDescription: selected.Description,
                         LoanRegistrationTermInMonths: selected.LoanRegistrationTermInMonths,
                         LoanInterestAnnualPercentageRate: selected.LoanInterestAnnualPercentageRate,
                         LoanInterestChargeModeDescription: selected.LoanInterestChargeModeDescription,
                         LoanInterestCalculationModeDescription: selected.LoanInterestCalculationModeDescription,
-                        LoanRegistrationLoanProductCategoryDescription:
-                            selected.LoanRegistrationLoanProductCategoryDescription,
+                        LoanRegistrationLoanProductCategoryDescription: selected.LoanRegistrationLoanProductCategoryDescription,
                         LoanRegistrationMaximumAmount: selected.LoanRegistrationMaximumAmount,
                         LoanRegistrationMinimumInterestAmount: selected.LoanRegistrationMinimumInterestAmount,
                         LoanRegistrationInvestmentsMultiplier: selected.LoanRegistrationInvestmentsMultiplier,
-                        LoanRegistrationStandingOrderTriggerDescription:
-                            selected.LoanRegistrationStandingOrderTriggerDescription,
-                        LoanRegistrationMinimumGuarantors:
-                            selected.LoanRegistrationMinimumGuarantors,
-                        LoanRegistrationMaximumGuarantees:
-                            selected.LoanRegistrationMaximumGuarantees,
-                        LoanRegistrationAllowSelfGuarantee:
-                            selected.LoanRegistrationAllowSelfGuarantee,
+                        LoanRegistrationStandingOrderTriggerDescription: selected.LoanRegistrationStandingOrderTriggerDescription,
+                        LoanRegistrationMinimumGuarantors: selected.LoanRegistrationMinimumGuarantors,
+                        LoanRegistrationMaximumGuarantees: selected.LoanRegistrationMaximumGuarantees,
+                        LoanRegistrationAllowSelfGuarantee: selected.LoanRegistrationAllowSelfGuarantee,
                     }));
-
-                    // Ensure minimum guarantors
+                    setMaxTermMonths(selected.LoanRegistrationTermInMonths || 0);
                     const min = selected.LoanRegistrationMinimumGuarantors || 0;
-
                     setGuarantors(
                         Array.from({ length: min }, () => ({
                             CustomerId: "",
@@ -1298,11 +1429,11 @@ export default function AddLoanApplicationDrawer({ open, onClose }) {
                             AddressMobileLine: "",
                             FullName: "",
                             Remarks: "",
+                            MemberDeposits: 0
                         }))
                     );
                 }}
             />
-
 
             <GuarantorSelectModal
                 open={guarantorModalIndex !== null}
@@ -1313,12 +1444,22 @@ export default function AddLoanApplicationDrawer({ open, onClose }) {
                 selectedGuarantorIds={guarantors
                     .map(g => g.CustomerId)
                     .filter(Boolean)}
-                onSelect={(member) => {
-                    const c = member.Customer;
-
+                onSelect={(member, deposits) => {
+                    const c = {
+                        Id: member.id || member.Id || '',
+                        IndividualFirstName: member.firstName || member.IndividualFirstName || '',
+                        IndividualLastName: member.lastName || member.IndividualLastName || '',
+                        IndividualIdentityCardNumber: member.idNumber || member.IndividualIdentityCardNumber || '',
+                        Reference3: member.payrollNumber || member.Reference3 || '',
+                        PersonalIdentificationNumber: member.personalIdentificationNumber || member.PersonalIdentificationNumber || '',
+                        AddressMobileLine: member.address?.mobileLine || member.AddressMobileLine || '',
+                        AddressEmail: member.address?.email || member.AddressEmail || '',
+                    };
+                    
+                    const guarantorDeposits = deposits || 0;
+                    
                     setGuarantors(prev => {
                         const copy = [...prev];
-
                         copy[guarantorModalIndex] = {
                             ...copy[guarantorModalIndex],
                             CustomerId: c.Id,
@@ -1328,8 +1469,9 @@ export default function AddLoanApplicationDrawer({ open, onClose }) {
                             PersonalIdentificationNumber: c.PersonalIdentificationNumber || "",
                             AddressMobileLine: c.AddressMobileLine || "",
                             AddressEmail: c.AddressEmail || "",
+                            MemberDeposits: guarantorDeposits,
+                            AmountGuaranteed: 0,
                         };
-
                         return copy;
                     });
                 }}
@@ -1338,26 +1480,18 @@ export default function AddLoanApplicationDrawer({ open, onClose }) {
             <ParentLoanSelectModal
                 open={parentLoanModalOpen}
                 onClose={() => setParentLoanModalOpen(false)}
-                customers={customers}   // ✅ pass customers
+                customers={customers}
                 selectedCustomerId={form.CustomerId}
                 onSelect={(loan) => {
-                    setSelectedParentLoan(loan);   // 👈 for display
+                    setSelectedParentLoan(loan);
                     setForm(prev => ({
                         ...prev,
-                        parentId: loan.Id,   // ✅ only ID stored
+                        parentId: loan.Id,
                         Remarks: prev.Remarks
                     }));
                     setParentLoanModalOpen(false);
                 }}
             />
-
         </AnimatePresence>
     );
 }
-
-
-
-
-
-
-

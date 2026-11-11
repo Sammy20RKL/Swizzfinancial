@@ -28,8 +28,8 @@ function MemberStatement({ customer }) {
                 setError(null);
 
                 const res = await fetch(
-                    `http://88.99.215.90:8600/api/customer-statement/by-customer/${customer.Id}?startDate=${startDate}&endDate=${endDate}`
-                    //`http://88.99.215.90:8600/api/customer-statement/by-customer/ef44e954-3db9-4123-bcb9-6567d4d0059c?startDate=2024-12-01&endDate=2026-12-31`
+                    `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/customer-statement/by-customer/${customer.Id}?startDate=${startDate}&endDate=${endDate}`
+                    //`${import.meta.env.VITE_APP_LOANING_URL}/api/customer-statement/by-customer/ef44e954-3db9-4123-bcb9-6567d4d0059c?startDate=2024-12-01&endDate=2026-12-31`
                 );
 
                 const data = await res.json();
@@ -74,7 +74,7 @@ function MemberStatement({ customer }) {
         if (!customer?.Id) return;
 
         try {
-            const url = `http://88.99.215.90:8600/api/customer-statement/pdf/${customer.Id}?startDate=${startDate}&endDate=${endDate}`;
+            const url = `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/customer-statement/pdf/${customer.Id}?startDate=${startDate}&endDate=${endDate}`;
 
             const response = await fetch(url);
             if (!response.ok) {

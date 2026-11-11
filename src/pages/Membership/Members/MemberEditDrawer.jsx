@@ -25,7 +25,7 @@ export default function MemberEditDrawer({ open, onClose, refresh, member }) {
     });
 
     // ========================
-    // MASTER FORM STATE
+    // MASTER FORM STATE - Uses original API structure
     // ========================
     const [customer, setCustomer] = useState({
         Id: "",
@@ -87,112 +87,94 @@ export default function MemberEditDrawer({ open, onClose, refresh, member }) {
     const next = () => setStep(s => s + 1);
     const back = () => setStep(s => s - 1);
 
-    // Load member data when drawer opens
+    // Load member data when drawer opens - Map flat structure to API structure
     useEffect(() => {
         if (member && open) {
-            const customerData = member.Customer || {};
-            console.log("Full member data received:", member); // Debug log
-            console.log("Customer data:", customerData); // Debug log
-            console.log("NextOfKin data:", member.NextOfKin); // Debug log
-
+            // Map flat structure to the original API structure
             setCustomer({
-                Id: customerData.Id || "",
-                StationId: customerData.StationId || "",
-                BranchId: customerData.BranchId || "",
-                Type: customerData.Type || "",
-                SerialNumber: customerData.SerialNumber || "",
-                PersonalIdentificationNumber: customerData.PersonalIdentificationNumber || "",
-                IndividualType: customerData.IndividualType || 1,
-                IndividualFirstName: customerData.IndividualFirstName || "",
-                IndividualLastName: customerData.IndividualLastName || "",
-                IndividualIdentityCardType: customerData.IndividualIdentityCardType || 1,
-                IndividualIdentityCardNumber: customerData.IndividualIdentityCardNumber || "",
-                IndividualIdentityCardSerialNumber: customerData.IndividualIdentityCardSerialNumber || "",
-                IndividualPayrollNumbers: customerData.IndividualPayrollNumbers || "",
-                IndividualSalutation: customerData.IndividualSalutation || "1",
-                IndividualGender: customerData.IndividualGender || "",
-                IndividualMaritalStatus: customerData.IndividualMaritalStatus || "",
-                IndividualNationality: customerData.IndividualNationality || "",
-                IndividualBirthDate: customerData.IndividualBirthDate ?
-                    new Date(customerData.IndividualBirthDate).toISOString().split('T')[0] : "",
-                IndividualEmploymentDesignation: customerData.IndividualEmploymentDesignation || "",
-                IndividualEmploymentTermsOfService: customerData.IndividualEmploymentTermsOfService || "",
-                IndividualEmploymentDate: customerData.IndividualEmploymentDate ?
-                    new Date(customerData.IndividualEmploymentDate).toISOString().split('T')[0] : "",
-                IndividualClassification: customerData.IndividualClassification || "",
-                NonIndividualDescription: customerData.NonIndividualDescription || "",
-                NonIndividualRegistrationNumber: customerData.NonIndividualRegistrationNumber || "",
-                NonIndividualRegistrationSerialNumber: customerData.NonIndividualRegistrationSerialNumber || "",
-                NonIndividualDateEstablished: customerData.NonIndividualDateEstablished || "",
-                AddressAddressLine1: customerData.AddressAddressLine1 || "",
-                AddressAddressLine2: customerData.AddressAddressLine2 || "",
-                AddressStreet: customerData.AddressStreet || "",
-                AddressPostalCode: customerData.AddressPostalCode || "",
-                AddressCity: customerData.AddressCity || "",
-                AddressEmail: customerData.AddressEmail || "",
-                AddressLandLine: customerData.AddressLandLine || "",
-                AddressMobileLine: customerData.AddressMobileLine || "",
-                PassportImageId: customerData.PassportImageId || null,
-                SignatureImageId: customerData.SignatureImageId || null,
-                IdentityCardFrontSideImageId: customerData.IdentityCardFrontSideImageId || null,
-                IdentityCardBackSideImageId: customerData.IdentityCardBackSideImageId || null,
-                RegistrationDate: customerData.RegistrationDate ?
-                    new Date(customerData.RegistrationDate).toISOString().split('T')[0] : "",
-                Reference1: customerData.Reference1 || "",
-                Reference2: customerData.Reference2 || "",
-                Reference3: customerData.Reference3 || "",
-                Remarks: customerData.Remarks || "",
-                IsDefaulter: customerData.IsDefaulter || false,
-                IsLocked: customerData.IsLocked || false,
-                InhibitGuaranteeing: customerData.InhibitGuaranteeing || false,
-                RecruitedBy: customerData.RecruitedBy || "SYSTEM",
-                RecordStatus: customerData.RecordStatus || 1,
+                Id: member.id || "",
+                StationId: member.stationId || "",
+                BranchId: member.branchId || "",
+                Type: member.type || "",
+                SerialNumber: member.serialNumber || "",
+                PersonalIdentificationNumber: member.pin || member.PersonalIdentificationNumber || "",
+                IndividualType: member.individualType || 1,
+                IndividualFirstName: member.firstName || "",
+                IndividualLastName: member.lastName || "",
+                IndividualIdentityCardType: member.idCardType || 1,
+                IndividualIdentityCardNumber: member.idNumber || "",
+                IndividualIdentityCardSerialNumber: member.idCardSerialNumber || "",
+                IndividualPayrollNumbers: member.payrollNumber || "",
+                IndividualSalutation: member.salutation?.toString() || "1",
+                IndividualGender: member.gender?.toString() || "",
+                IndividualMaritalStatus: member.maritalStatus?.toString() || "",
+                IndividualNationality: member.nationality || "",
+                IndividualBirthDate: member.birthDate ? new Date(member.birthDate).toISOString().split('T')[0] : "",
+                IndividualEmploymentDesignation: member.employmentDesignation || "",
+                IndividualEmploymentTermsOfService: member.employmentTerms?.toString() || "",
+                IndividualEmploymentDate: member.employmentDate ? new Date(member.employmentDate).toISOString().split('T')[0] : "",
+                IndividualClassification: member.classification?.toString() || "",
+                NonIndividualDescription: "",
+                NonIndividualRegistrationNumber: "",
+                NonIndividualRegistrationSerialNumber: "",
+                NonIndividualDateEstablished: "",
+                AddressAddressLine1: member.address?.addressLine1 || "",
+                AddressAddressLine2: member.address?.addressLine2 || "",
+                AddressStreet: member.address?.street || "",
+                AddressPostalCode: member.address?.postalCode || "",
+                AddressCity: member.address?.city || "",
+                AddressEmail: member.address?.email || "",
+                AddressLandLine: member.address?.landLine || "",
+                AddressMobileLine: member.address?.mobileLine || "",
+                PassportImageId: member.passportImageId || null,
+                SignatureImageId: member.signatureImageId || null,
+                IdentityCardFrontSideImageId: member.idFrontImageId || null,
+                IdentityCardBackSideImageId: member.idBackImageId || null,
+                RegistrationDate: member.registrationDate ? new Date(member.registrationDate).toISOString().split('T')[0] : "",
+                Reference1: member.reference1 || "",
+                Reference2: member.memberNumber || member.Reference2 || "",
+                Reference3: member.reference3 || "",
+                Remarks: member.remarks || "",
+                IsDefaulter: member.isDefaulter || false,
+                IsLocked: member.isLocked || false,
+                InhibitGuaranteeing: member.inhibitGuaranteeing || false,
+                RecruitedBy: member.recruitedBy || "SYSTEM",
+                RecordStatus: member.recordStatus || 1,
                 ModifiedBy: "SYSTEM",
                 ModifiedDate: new Date().toISOString(),
-                BankName: customerData.BankName || "",
-                BranchName: customerData.BranchName || "",
+                BankName: member.bankName || "",
+                BranchName: member.branchName || "",
             });
 
-            // Load next of kin data - FIXED: Using NextOfKin (not NextOfKins)
-            if (member.NextOfKin && member.NextOfKin.length > 0) {
-                console.log("Processing NextOfKin data:", member.NextOfKin); // Debug log
-                const mappedNextOfKins = member.NextOfKin.map(nok => {
-                    // Extract first and last name from FullName
-                    const fullName = nok.FullName || "";
-                    const nameParts = fullName.trim().split(' ');
-                    const firstName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : nameParts[0] || "";
-                    const lastName = nameParts.length > 0 ? nameParts[0] : "";
+            // Handle Next of Kin - Map flat to API structure
+            if (member.nextOfKin && member.nextOfKin.length > 0) {
+                const mappedNextOfKins = member.nextOfKin.map(nok => ({
+                    Id: nok.id || "",
+                    CustomerId: nok.customerId || member.id,
+                    Salutation: nok.salutation?.toString() || "",
+                    Gender: nok.gender?.toString() || "",
+                    Relationship: nok.relationship?.toString() || "",
+                    FirstName: nok.firstName || "",
+                    LastName: nok.lastName || "",
+                    IdentityCardType: nok.identityCardType || 1,
+                    IdentityCardNumber: nok.identityCardNumber || "",
+                    AddressAddressLine1: nok.address?.addressLine1 || "",
+                    AddressAddressLine2: nok.address?.addressLine2 || "",
+                    AddressStreet: nok.address?.street || "",
+                    AddressPostalCode: nok.address?.postalCode || "",
+                    AddressCity: nok.address?.city || "",
+                    AddressEmail: nok.address?.email || "",
+                    AddressLandLine: nok.address?.landLine || "",
+                    AddressMobileLine: nok.address?.mobileLine || "",
+                    NominatedPercentage: nok.nominatedPercentage || 0,
+                    Remarks: nok.remarks || "",
+                }));
 
-                    return {
-                        Id: nok.Id || "",
-                        CustomerId: nok.CustomerId || customerData.Id,
-                        Salutation: nok.Salutation || "",
-                        Gender: nok.Gender || "",
-                        Relationship: nok.Relationship || nok.RelationshipDescription || "",
-                        FirstName: nok.FirstName || firstName,
-                        LastName: nok.LastName || lastName,
-                        IdentityCardType: nok.IdentityCardType || 1,
-                        IdentityCardNumber: nok.IdentityCardNumber || "",
-                        AddressAddressLine1: nok.AddressAddressLine1 || "",
-                        AddressAddressLine2: nok.AddressAddressLine2 || "",
-                        AddressStreet: nok.AddressStreet || "",
-                        AddressPostalCode: nok.AddressPostalCode || "",
-                        AddressCity: nok.AddressCity || "",
-                        AddressEmail: nok.AddressEmail || "",
-                        AddressLandLine: nok.AddressLandLine || "",
-                        AddressMobileLine: nok.AddressMobileLine || "",
-                        NominatedPercentage: nok.NominatedPercentage || 0,
-                        Remarks: nok.Remarks || "",
-                    };
-                });
-
-                console.log("Mapped NextOfKins:", mappedNextOfKins); // Debug log
                 setNextOfKins(mappedNextOfKins);
             } else {
-                console.log("No NextOfKin data found, setting default"); // Debug log
                 setNextOfKins([{
                     Id: "",
-                    CustomerId: customerData.Id,
+                    CustomerId: member.id,
                     Salutation: "",
                     Gender: "",
                     Relationship: "",
@@ -263,25 +245,35 @@ export default function MemberEditDrawer({ open, onClose, refresh, member }) {
     };
 
     // ========================
-    // SUBMIT HANDLER FOR CUSTOMER
+    // SUBMIT HANDLER FOR CUSTOMER - Uses original API structure
     // ========================
     const handleCustomerUpdate = async () => {
         setLoading(true);
 
         try {
-            // Format the payload for customer API
             const payload = {
                 Id: customer.Id,
+                StationId: customer.StationId,
+                BranchId: customer.BranchId,
                 Type: parseInt(customer.Type) || 1,
+                SerialNumber: customer.SerialNumber,
+                PersonalIdentificationNumber: customer.PersonalIdentificationNumber,
+                IndividualType: parseInt(customer.IndividualType) || 1,
                 IndividualFirstName: customer.IndividualFirstName,
                 IndividualLastName: customer.IndividualLastName,
                 IndividualSalutation: parseInt(customer.IndividualSalutation) || 1,
                 IndividualGender: parseInt(customer.IndividualGender) || 1,
                 IndividualMaritalStatus: parseInt(customer.IndividualMaritalStatus) || 1,
-                IndividualNationality: parseInt(customer.IndividualNationality) || 1,
+                IndividualNationality: customer.IndividualNationality,
                 IndividualIdentityCardType: parseInt(customer.IndividualIdentityCardType) || 1,
                 IndividualIdentityCardNumber: customer.IndividualIdentityCardNumber,
+                IndividualIdentityCardSerialNumber: customer.IndividualIdentityCardSerialNumber,
+                IndividualPayrollNumbers: customer.IndividualPayrollNumbers,
                 IndividualBirthDate: customer.IndividualBirthDate,
+                IndividualEmploymentDesignation: customer.IndividualEmploymentDesignation,
+                IndividualEmploymentTermsOfService: parseInt(customer.IndividualEmploymentTermsOfService) || 0,
+                IndividualEmploymentDate: customer.IndividualEmploymentDate,
+                IndividualClassification: customer.IndividualClassification,
                 AddressAddressLine1: customer.AddressAddressLine1,
                 AddressAddressLine2: customer.AddressAddressLine2,
                 AddressStreet: customer.AddressStreet,
@@ -290,14 +282,21 @@ export default function MemberEditDrawer({ open, onClose, refresh, member }) {
                 AddressEmail: customer.AddressEmail,
                 AddressLandLine: customer.AddressLandLine,
                 AddressMobileLine: customer.AddressMobileLine,
+                RegistrationDate: customer.RegistrationDate,
                 Reference1: customer.Reference1,
+                Reference2: customer.Reference2,
+                Reference3: customer.Reference3,
                 Remarks: customer.Remarks,
+                IsDefaulter: customer.IsDefaulter,
+                IsLocked: customer.IsLocked,
+                InhibitGuaranteeing: customer.InhibitGuaranteeing,
+                RecordStatus: customer.RecordStatus,
+                RecruitedBy: customer.RecruitedBy || "SYSTEM",
                 BankName: customer.BankName,
                 BranchName: customer.BranchName,
-                ModifiedBy: "SYSTEM" // Or get from your auth system
+                ModifiedBy: "SYSTEM",
+                ModifiedDate: new Date().toISOString(),
             };
-
-            console.log("Sending customer update payload:", payload);
 
             const response = await fetch(
                 `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/customers/${customer.Id}`,
@@ -305,7 +304,6 @@ export default function MemberEditDrawer({ open, onClose, refresh, member }) {
                     method: "PUT",
                     headers: {
                         "Content-Type": "application/json",
-                        "ngrok-skip-browser-warning": "true",
                     },
                     body: JSON.stringify(payload),
                 }
@@ -318,9 +316,8 @@ export default function MemberEditDrawer({ open, onClose, refresh, member }) {
             }
 
             const data = await response.json();
-            console.log("Customer update response:", data);
 
-            if (data.success) {
+            if (data.Success || data.success) {
                 Swal.fire("Success", "Customer updated successfully", "success");
                 return true;
             } else {
@@ -336,12 +333,8 @@ export default function MemberEditDrawer({ open, onClose, refresh, member }) {
         }
     };
 
-
-
-
-
     // ========================
-    // SUBMIT HANDLER FOR NEXT OF KIN
+    // SUBMIT HANDLER FOR NEXT OF KIN - Uses original API structure
     // ========================
     const handleNextOfKinUpdates = async () => {
         setUpdatingNextOfKin(true);
@@ -349,9 +342,8 @@ export default function MemberEditDrawer({ open, onClose, refresh, member }) {
 
         try {
             for (const nok of nextOfKins) {
-                // Mapping state to your specific JSON structure
                 const payload = {
-                    customerId: customer.Id, // Link to the current member
+                    customerId: customer.Id,
                     salutation: parseInt(nok.Salutation) || 1,
                     gender: parseInt(nok.Gender) || 1,
                     relationship: parseInt(nok.Relationship) || 1,
@@ -369,12 +361,9 @@ export default function MemberEditDrawer({ open, onClose, refresh, member }) {
                     addressMobileLine: nok.AddressMobileLine || "",
                     nominatedPercentage: parseFloat(nok.NominatedPercentage) || 0,
                     remarks: nok.Remarks || "",
-                    createdBy: "admin@example.com" // Update this to your auth user if available
+                    createdBy: "admin@example.com"
                 };
 
-                console.log("Submitting Next of Kin:", payload);
-
-                // Using POST as requested for the edit/add side
                 const response = await fetch(
                     `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/nextofkin`,
                     {
@@ -410,13 +399,10 @@ export default function MemberEditDrawer({ open, onClose, refresh, member }) {
         }
     };
 
-
-
     // ========================
     // MAIN SUBMIT HANDLER
     // ========================
     const handleSubmit = async () => {
-        // If on Step 1, only update customer
         if (step === 1) {
             const success = await handleCustomerUpdate();
             if (success) {
@@ -426,9 +412,7 @@ export default function MemberEditDrawer({ open, onClose, refresh, member }) {
             return;
         }
 
-        // If on Step 2, update customer and next of kin
         if (step === 2) {
-            // Validate Next of Kin percentages
             if (totalNokPercentage > 100) {
                 Swal.fire(
                     "Invalid Allocation",
@@ -438,11 +422,9 @@ export default function MemberEditDrawer({ open, onClose, refresh, member }) {
                 return;
             }
 
-            // Update customer first
             const customerSuccess = await handleCustomerUpdate();
             if (!customerSuccess) return;
 
-            // Then update next of kin
             const nokSuccess = await handleNextOfKinUpdates();
             if (nokSuccess) {
                 refresh();
@@ -451,7 +433,6 @@ export default function MemberEditDrawer({ open, onClose, refresh, member }) {
             return;
         }
 
-        // If on Step 3, update customer only (uploads step)
         if (step === 3) {
             const success = await handleCustomerUpdate();
             if (success) {
@@ -477,9 +458,7 @@ export default function MemberEditDrawer({ open, onClose, refresh, member }) {
 
     const loadStations = async () => {
         try {
-            const res = await fetch(`${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/stations`, {
-                headers: { "ngrok-skip-browser-warning": "true" }
-            });
+            const res = await fetch(`${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/stations`);
             const json = await res.json();
             if (json.success) {
                 setStations(json.data);
@@ -501,7 +480,6 @@ export default function MemberEditDrawer({ open, onClose, refresh, member }) {
         0
     );
 
-    // Determine button text based on step
     const getSubmitButtonText = () => {
         if (loading || updatingNextOfKin) {
             return "Updating...";
@@ -517,10 +495,6 @@ export default function MemberEditDrawer({ open, onClose, refresh, member }) {
         }
         return "Update";
     };
-
-
-
-    console.log(customer);
 
     return (
         <AnimatePresence>
@@ -1139,12 +1113,10 @@ export default function MemberEditDrawer({ open, onClose, refresh, member }) {
                                         </Button>
                                     ) : <span></span>}
 
-                                    {/* Show Next button for steps 1 and 2, Submit for step 3 */}
                                     {step < 3 ? (
                                         <div className="flex gap-2">
                                             <Button
                                                 onClick={() => {
-                                                    // For Step 2, validate Next of Kin percentages before proceeding
                                                     if (step === 2 && totalNokPercentage > 100) {
                                                         Swal.fire(
                                                             "Invalid Allocation",

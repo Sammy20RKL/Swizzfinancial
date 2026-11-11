@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -6,21 +5,71 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Swal from "sweetalert2";
 
+const RAW_FIN_BASE = import.meta.env.VITE_APP_FIN_URL;
+const FIN_BASE = (RAW_FIN_BASE || "").replace(/\/+$/, "");
+
+// Fail loudly & visibly if the env var wasn't set — otherwise fetches
+// silently become relative URLs against Vite and fail as HTML errors.
+if (!FIN_BASE) {
+    // eslint-disable-next-line no-console
+    console.error(
+        "🚨 VITE_APP_FIN_URL is not set. Credit batch drawer cannot reach the API. " +
+        "Add it to .env and restart `npm run dev`."
+    );
+}
+
+/**
+ * Safe JSON parse — surfaces a useful error instead of a cryptic
+ * "Unexpected token '<'" when the server returns HTML (e.g. Vite 404).
+ */
+async function parseJsonResponse(res, label) {
+    const text = await res.text();
+    try {
+        return text ? JSON.parse(text) : null;
+    } catch {
+        throw new Error(
+            `${label} returned non-JSON (HTTP ${res.status}). ` +
+            `Check VITE_APP_FIN_URL and the endpoint path. ` +
+            `Body preview: ${text.slice(0, 120)}`
+        );
+    }
+}
+
+function unwrapList(json) {
+    if (json == null) return [];
+    if (Array.isArray(json)) return json;
+
+    const data = json.Data ?? json.data;
+    if (Array.isArray(data)) return data;
+
+    if (data && typeof data === "object") {
+        const inner =
+            data.items ?? data.Items ??
+            data.results ?? data.Results ??
+            data.records ?? data.Records;
+        if (Array.isArray(inner)) return inner;
+    }
+    return [];
+}
+
 export default function AddCreditBatchDrawer({ open, onClose, onSuccess }) {
     const [loading, setLoading] = useState(false);
 
     const [creditTypes, setCreditTypes] = useState([]);
     const [creditTypeDisplay, setCreditTypeDisplay] = useState("");
     const [creditTypesLoading, setCreditTypesLoading] = useState(false);
+    const [creditTypesError, setCreditTypesError] = useState("");
 
     const [branches, setBranches] = useState([]);
     const [branchDisplay, setBranchDisplay] = useState("");
     const [branchesLoading, setBranchesLoading] = useState(false);
+    const [branchesError, setBranchesError] = useState("");
 
-    // Add these state hooks
     const [postingPeriods, setPostingPeriods] = useState([]);
     const [postingPeriodDisplay, setPostingPeriodDisplay] = useState("");
     const [postingPeriodsLoading, setPostingPeriodsLoading] = useState(false);
+    const [postingPeriodsError, setPostingPeriodsError] = useState("");
+    const [postingPeriodLocked, setPostingPeriodLocked] = useState(false);
 
     const CREDIT_BATCH_TYPES = [
         { label: "Payout", value: "56026" },
@@ -33,7 +82,7 @@ export default function AddCreditBatchDrawer({ open, onClose, onSuccess }) {
         creditTypeId: "",
         branchId: "",
         type: "56027",
-        postingPeriodId: "2F1DA0E0-B1DB-F011-B575-80CE62222714",
+        postingPeriodId: "",
         reference: "",
         totalValue: 0,
         month: new Date().getMonth() + 1,
@@ -43,52 +92,104 @@ export default function AddCreditBatchDrawer({ open, onClose, onSuccess }) {
     useEffect(() => {
         if (!open) return;
 
-        // Fetch Credit Types
+        // Reset so re-opening the drawer always starts from a clean slate
+        setCreditTypesError("");
+        setBranchesError("");
+        setPostingPeriodsError("");
+        setPostingPeriodLocked(false);
+        setPostingPeriodDisplay("");
+        setFormData((prev) => ({
+            ...prev,
+            creditTypeId: "",
+            branchId: "",
+            postingPeriodId: "",
+        }));
+
+        // ── Credit Types ──
         const fetchCreditTypes = async () => {
+            setCreditTypesLoading(true);
             try {
-                setCreditTypesLoading(true);
-                const res = await fetch(
-                    "http://88.99.215.90:8600/api/values/credittypes",
-                    { headers: { "ngrok-skip-browser-warning": "true" } }
-                );
-                const data = await res.json();
-                setCreditTypes(data || []);
-            } catch {
-                Swal.fire("Error", "Failed to load credit types", "error");
+                const res = await fetch(`${FIN_BASE}/api/values/credittypes`);
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const json = await parseJsonResponse(res, "Credit types");
+                const list = unwrapList(json);
+                setCreditTypes(list);
+
+                const checkOff = list.find((ct) => {
+                    const d = String(ct.Description || "").toLowerCase();
+                    return d === "check-off" || d === "checkoff";
+                });
+                if (checkOff) {
+                    setCreditTypeDisplay(checkOff.Description);
+                    setFormData((prev) => ({
+                        ...prev,
+                        creditTypeId: prev.creditTypeId || checkOff.Id,
+                    }));
+                }
+            } catch (err) {
+                console.error("Fetch credit types error:", err);
+                setCreditTypesError(err.message || "Failed to load credit types");
+                setCreditTypes([]);
             } finally {
                 setCreditTypesLoading(false);
             }
         };
 
-        // Fetch Branches
+        // ── Branches ──
         const fetchBranches = async () => {
+            setBranchesLoading(true);
             try {
-                setBranchesLoading(true);
-                const res = await fetch(
-                    "http://88.99.215.90:8600/api/values/branches",
-                    { headers: { "ngrok-skip-browser-warning": "true" } }
-                );
-                const data = await res.json();
-                setBranches(data.Data || []);
-            } catch {
-                Swal.fire("Error", "Failed to load branches", "error");
+                const res = await fetch(`${FIN_BASE}/api/values/branches`);
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const json = await parseJsonResponse(res, "Branches");
+                const list = unwrapList(json);
+                setBranches(list);
+
+                if (list.length === 1) {
+                    setBranchDisplay(list[0].Description);
+                    setFormData((prev) => ({
+                        ...prev,
+                        branchId: prev.branchId || list[0].Id,
+                    }));
+                }
+            } catch (err) {
+                console.error("Fetch branches error:", err);
+                setBranchesError(err.message || "Failed to load branches");
+                setBranches([]);
             } finally {
                 setBranchesLoading(false);
             }
         };
 
-
+        // ── Posting Periods ──
         const fetchPostingPeriods = async () => {
+            setPostingPeriodsLoading(true);
             try {
-                setPostingPeriodsLoading(true);
-                const res = await fetch(
-                    "http://88.99.215.90:8600/api/loaning/GetPostingPeriods",
-                    { headers: { "ngrok-skip-browser-warning": "true" } }
+                const res = await fetch(`${FIN_BASE}/api/values/GetPostingPeriods`);
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const json = await parseJsonResponse(res, "Posting periods");
+                const list = unwrapList(json);
+                setPostingPeriods(list);
+
+                const active = list.find(
+                    (pp) =>
+                        pp.IsActive === true ||
+                        pp.isActive === true ||
+                        String(pp.IsActive).toLowerCase() === "true"
                 );
-                const data = await res.json();
-                setPostingPeriods(data || []);
-            } catch {
-                Swal.fire("Error", "Failed to load posting periods", "error");
+
+                if (active) {
+                    setPostingPeriodDisplay(active.Description || "");
+                    setPostingPeriodLocked(true);
+                    setFormData((prev) => ({
+                        ...prev,
+                        postingPeriodId: active.Id,
+                    }));
+                }
+            } catch (err) {
+                console.error("Fetch posting periods error:", err);
+                setPostingPeriodsError(err.message || "Failed to load posting periods");
+                setPostingPeriods([]);
             } finally {
                 setPostingPeriodsLoading(false);
             }
@@ -105,26 +206,35 @@ export default function AddCreditBatchDrawer({ open, onClose, onSuccess }) {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setLoading(true);
 
+        if (!formData.creditTypeId) {
+            Swal.fire("Validation", "Please select a valid Credit Type from the list.", "warning");
+            return;
+        }
+        if (!formData.branchId) {
+            Swal.fire("Validation", "Please select a valid Branch from the list.", "warning");
+            return;
+        }
+        if (!formData.postingPeriodId) {
+            Swal.fire("Validation", "No active posting period available.", "warning");
+            return;
+        }
+
+        setLoading(true);
         try {
-            const res = await fetch(
-                "http://88.99.215.90:8600/api/values/creditbatch/add",
-                {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "ngrok-skip-browser-warning": "true",
-                    },
-                    body: JSON.stringify({
-                        ...formData,
-                        totalValue: Number(formData.totalValue),
-                        month: Number(formData.month),
-                    }),
-                }
-            );
-            const data = await res.json().catch(() => ({}));
-            if (!res.ok) throw new Error(data?.message || "Failed to create credit batch");
+            const res = await fetch(`${FIN_BASE}/api/values/creditbatch/add`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    ...formData,
+                    totalValue: Number(formData.totalValue),
+                    month: Number(formData.month),
+                }),
+            });
+            const data = await parseJsonResponse(res, "Credit batch create").catch(() => ({}));
+            if (!res.ok) {
+                throw new Error(data?.message || data?.Message || "Failed to create credit batch");
+            }
 
             Swal.fire("Success", "Credit Batch created successfully", "success");
             onSuccess?.();
@@ -135,9 +245,6 @@ export default function AddCreditBatchDrawer({ open, onClose, onSuccess }) {
             setLoading(false);
         }
     };
-
-
-    console.log(formData);
 
     return (
         <AnimatePresence>
@@ -158,25 +265,37 @@ export default function AddCreditBatchDrawer({ open, onClose, onSuccess }) {
                     >
                         <div className="p-4 flex justify-between items-center bg-indigo-600 rounded-2xl mb-4">
                             <h2 className="font-bold text-lg text-white">Add Credit Batch</h2>
-                            <Button variant="outline" size="sm" onClick={onClose}>Close</Button>
+                            <Button variant="outline" size="sm" onClick={onClose}>
+                                Close
+                            </Button>
                         </div>
 
-                        <form onSubmit={handleSubmit} className="space-y-4 p-4 grid grid-cols-2 gap-5">
-
+                        <form
+                            onSubmit={handleSubmit}
+                            className="space-y-4 p-4 grid grid-cols-2 gap-5"
+                        >
                             {/* Credit Type */}
                             <div className="relative">
                                 <Label>Credit Type</Label>
                                 <Input
                                     list="credit-types"
-                                    placeholder={creditTypesLoading ? "Loading..." : "Select or search credit type"}
+                                    placeholder={
+                                        creditTypesLoading
+                                            ? "Loading..."
+                                            : creditTypesError
+                                                ? "Failed to load — see banner"
+                                                : "Select or search credit type"
+                                    }
                                     value={creditTypeDisplay}
                                     onChange={(e) => {
                                         const value = e.target.value;
                                         setCreditTypeDisplay(value);
                                         const match = creditTypes.find(
-                                            (ct) => ct.Description.toLowerCase() === value.toLowerCase()
+                                            (ct) =>
+                                                String(ct.Description || "").toLowerCase() ===
+                                                value.toLowerCase()
                                         );
-                                        if (match) handleChange("creditTypeId", match.Id);
+                                        handleChange("creditTypeId", match ? match.Id : "");
                                     }}
                                     required
                                 />
@@ -185,6 +304,11 @@ export default function AddCreditBatchDrawer({ open, onClose, onSuccess }) {
                                         <option key={ct.Id} value={ct.Description} />
                                     ))}
                                 </datalist>
+                                {creditTypesError && (
+                                    <p className="mt-1 text-[11px] text-red-600">
+                                        {creditTypesError}
+                                    </p>
+                                )}
                             </div>
 
                             {/* Branch */}
@@ -192,15 +316,23 @@ export default function AddCreditBatchDrawer({ open, onClose, onSuccess }) {
                                 <Label>Branch</Label>
                                 <Input
                                     list="branches"
-                                    placeholder={branchesLoading ? "Loading..." : "Select or search branch"}
+                                    placeholder={
+                                        branchesLoading
+                                            ? "Loading..."
+                                            : branchesError
+                                                ? "Failed to load — see banner"
+                                                : "Select or search branch"
+                                    }
                                     value={branchDisplay}
                                     onChange={(e) => {
                                         const value = e.target.value;
                                         setBranchDisplay(value);
                                         const match = branches.find(
-                                            (b) => b.Description.toLowerCase() === value.toLowerCase()
+                                            (b) =>
+                                                String(b.Description || "").toLowerCase() ===
+                                                value.toLowerCase()
                                         );
-                                        if (match) handleChange("branchId", match.Id);
+                                        handleChange("branchId", match ? match.Id : "");
                                     }}
                                     required
                                 />
@@ -209,6 +341,11 @@ export default function AddCreditBatchDrawer({ open, onClose, onSuccess }) {
                                         <option key={b.Id} value={b.Description} />
                                     ))}
                                 </datalist>
+                                {branchesError && (
+                                    <p className="mt-1 text-[11px] text-red-600">
+                                        {branchesError}
+                                    </p>
+                                )}
                             </div>
 
                             {/* Type */}
@@ -222,35 +359,80 @@ export default function AddCreditBatchDrawer({ open, onClose, onSuccess }) {
                                 >
                                     <option value="">Select Type</option>
                                     {CREDIT_BATCH_TYPES.map((t) => (
-                                        <option key={t.value} value={t.value}>{t.label}</option>
+                                        <option key={t.value} value={t.value}>
+                                            {t.label}
+                                        </option>
                                     ))}
                                 </select>
                             </div>
 
                             {/* Posting Period */}
                             <div className="relative">
-                                <Label>Posting Period</Label>
+                                <Label>
+                                    Posting Period
+                                    {postingPeriodLocked && (
+                                        <span className="ml-2 text-[11px] font-normal text-emerald-600">
+                                            (active period — auto-selected)
+                                        </span>
+                                    )}
+                                </Label>
                                 <Input
-                                    list="posting-periods"
-                                    placeholder={postingPeriodsLoading ? "Loading..." : "Select or search posting period"}
+                                    list={postingPeriodLocked ? undefined : "posting-periods"}
+                                    placeholder={
+                                        postingPeriodsLoading
+                                            ? "Loading..."
+                                            : postingPeriodsError
+                                                ? "Failed to load — see banner"
+                                                : postingPeriodLocked
+                                                    ? postingPeriodDisplay || "No active period"
+                                                    : "Select or search posting period"
+                                    }
                                     value={postingPeriodDisplay}
                                     onChange={(e) => {
+                                        if (postingPeriodLocked) return;
                                         const value = e.target.value;
                                         setPostingPeriodDisplay(value);
                                         const match = postingPeriods.find(
-                                            (pp) => pp.Description.toLowerCase() === value.toLowerCase()
+                                            (pp) =>
+                                                String(pp.Description || "").toLowerCase() ===
+                                                value.toLowerCase()
                                         );
-                                        if (match) handleChange("postingPeriodId", match.Id);
+                                        handleChange("postingPeriodId", match ? match.Id : "");
                                     }}
+                                    readOnly={postingPeriodLocked}
+                                    className={
+                                        postingPeriodLocked
+                                            ? "bg-emerald-50 border-emerald-300 cursor-not-allowed"
+                                            : ""
+                                    }
                                     required
                                 />
-                                <datalist id="posting-periods">
-                                    {postingPeriods.map((pp) => (
-                                        <option key={pp.Id} value={pp.Description} />
-                                    ))}
-                                </datalist>
+                                {!postingPeriodLocked && (
+                                    <datalist id="posting-periods">
+                                        {postingPeriods.map((pp) => (
+                                            <option key={pp.Id} value={pp.Description} />
+                                        ))}
+                                    </datalist>
+                                )}
+                                {postingPeriodsError && (
+                                    <p className="mt-1 text-[11px] text-red-600">
+                                        {postingPeriodsError}
+                                    </p>
+                                )}
+                                {postingPeriodLocked && (
+                                    <p className="mt-1 text-[11px] text-emerald-600">
+                                        Only the active posting period is used for new credit batches.
+                                    </p>
+                                )}
+                                {!postingPeriodLocked &&
+                                    !postingPeriodsLoading &&
+                                    !postingPeriodsError &&
+                                    postingPeriods.length === 0 && (
+                                        <p className="mt-1 text-[11px] text-amber-600">
+                                            No active posting period found. Please open one before creating a batch.
+                                        </p>
+                                    )}
                             </div>
-
 
                             {/* Reference */}
                             <div>
@@ -258,18 +440,6 @@ export default function AddCreditBatchDrawer({ open, onClose, onSuccess }) {
                                 <Input
                                     value={formData.reference}
                                     onChange={(e) => handleChange("reference", e.target.value)}
-                                    required
-                                />
-                            </div>
-
-                            {/* Total Value */}
-                            <div>
-                                <Label>Total Value</Label>
-                                <Input
-                                    type="number"
-                                    min="0"
-                                    value={formData.totalValue}
-                                    onChange={(e) => handleChange("totalValue", e.target.value)}
                                     required
                                 />
                             </div>
@@ -305,7 +475,6 @@ export default function AddCreditBatchDrawer({ open, onClose, onSuccess }) {
                             >
                                 {loading ? "Saving..." : "Save Credit Batch"}
                             </Button>
-
                         </form>
                     </motion.div>
                 </>

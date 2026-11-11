@@ -30,7 +30,7 @@ export default function LoanDetailsDrawer({ open, onClose, loan }) {
                             {/* Header */}
                             <div className="flex justify-between bg-indigo-600 p-2 rounded-2xl mb-2 text-white font-semibold">
                                 <span className="flex items-center ml-3">
-                                    Loan #{loan.CaseNumber?.toString().padStart(7, "0")} Details
+                                    Loan Case Number - {loan.CaseNumber?.toString()} Details
                                 </span>
                                 <Button
                                     variant="outline"

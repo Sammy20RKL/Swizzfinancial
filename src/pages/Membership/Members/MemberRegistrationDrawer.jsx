@@ -13,137 +13,189 @@ import {
     SelectItem,
 } from "@/components/ui/select";
 import { nationalities, banks } from "./Selectdata";
+import { useMemberRegistration } from "./MemberRegistrationContext";
 
+const DRAFTS_KEY = "member_registration_drafts";
 
+// ── Initial state — defined at module level so it's always available ──────────
+const initialCustomerState = {
+    stationId:                          "",
+    companyId:                          "",
+    branchId:                           "",
+    type:                               "1",
+    serialNumber:                       0,
+    personalIdentificationNumber:       "",
+    individualType:                     1,
+    individualFirstName:                "",
+    individualLastName:                 "",
+    individualIdentityCardType:         1,
+    individualIdentityCardNumber:       "",
+    individualPayrollNumbers:           "",
+    individualSalutation:               1,
+    individualGender:                   "",
+    individualMaritalStatus:            "",
+    individualNationality:              "",
+    individualBirthDate:                "",
+    individualEmploymentDesignation:    "",
+    individualEmploymentTermsOfService: "",
+    individualEmploymentDate:           "",
+    addressAddressLine1:                "",
+    addressAddressLine2:                "",
+    addressStreet:                      "",
+    addressPostalCode:                  "",
+    addressCity:                        "",
+    addressEmail:                       "",
+    addressLandLine:                    "",
+    addressMobileLine:                  "",
+    passportImageId:                    null,
+    signatureImageId:                   null,
+    identityCardFrontSideImageId:       null,
+    identityCardBackSideImageId:        null,
+    remarks:                            "",
+    recruitedBy:                        "SYSTEM",
+    recordStatus:                       1,
+    createdBy:                          "SYSTEM",
+    createdDate:                        "",
+    reference1:                         "",
+    bankName:                           "",
+    branchName:                         "",
+    registrationDate:                   "",
+    individualMiddleName:               "",
+    alternativePhone:                   "",
+    postalAddress:                      "",
+    county:                             "",
+    subCountyWard:                      "",
+    townEstate:                         "",
+    homeCounty:                         "",
+    employerName:                       "",
+    employerAddress:                    "",
+    vehicleRegNo:                       "",
+    passportPhotoBase64:                "",
+};
 
+const emptyNextOfKin = {
+    salutation:          "",
+    gender:              "",
+    relationship:        "",
+    firstName:           "",
+    lastName:            "",
+    identityCardType:    1,
+    identityCardNumber:  "",
+    addressAddressLine1: "",
+    addressStreet:       "",
+    addressPostalCode:   "",
+    addressCity:         "",
+    addressEmail:        "",
+    addressMobileLine:   "",
+    nominatedPercentage: 0,
+    remarks:             "",
+    createdBy:           "SYSTEM",
+};
 
+// ── LocalStorage helpers ───────────────────────────────────────────────────────
+const getAllDrafts = () => {
+    try {
+        return JSON.parse(localStorage.getItem(DRAFTS_KEY)) || [];
+    } catch {
+        return [];
+    }
+};
+
+const saveDraftToStorage = (draft) => {
+    const drafts = getAllDrafts();
+    const index = drafts.findIndex((d) => d.id === draft.id);
+    if (index >= 0) drafts[index] = draft;
+    else drafts.push(draft);
+    localStorage.setItem(DRAFTS_KEY, JSON.stringify(drafts));
+};
+
+const deleteDraftFromStorage = (draftId) => {
+    const drafts = getAllDrafts().filter((d) => d.id !== draftId);
+    localStorage.setItem(DRAFTS_KEY, JSON.stringify(drafts));
+};
+
+// ── Component ──────────────────────────────────────────────────────────────────
 export default function MemberRegistrationDrawer({ open, onClose, refresh }) {
-    const [branches, setBranches] = useState([]);
-    const [stations, setStations] = useState([]);
-    const [loading, setLoading] = useState(false);
-    const [checkingId, setCheckingId] = useState(false);
-    const [idExists, setIdExists] = useState(false);
+    const {
+        customer,
+        setCustomer,
+        nextOfKins,
+        setNextOfKins,
+        step,
+        setStep,
+        clearDraft: contextClearDraft,
+        getSubmitPayload,
+    } = useMemberRegistration();
+
+    const [branches,             setBranches]             = useState([]);
+    const [companies,            setCompanies]            = useState([]);
+    const [loading,              setLoading]              = useState(false);
+    const [checkingId,           setCheckingId]           = useState(false);
+    const [idExists,             setIdExists]             = useState(false);
     const [showNationalityDropdown, setShowNationalityDropdown] = useState(false);
-
-
-
-
-    const [administrativeDivision, setAdministrativeDivision] = useState([]);
+    const [administrativeDivision,  setAdministrativeDivision]  = useState([]);
     const [errors, setErrors] = useState({
-        addressEmail: "",
-        addressMobileLine: "",
-        personalIdentificationNumber: "",
-        individualIdentityCardNumber: "",
+        addressEmail:                  "",
+        addressMobileLine:             "",
+        personalIdentificationNumber:  "",
+        individualIdentityCardNumber:  "",
+        nokMobileLine:                 "",
+        nokIdentityCardNumber:         "",
     });
 
-    // LocalStorage Key
-    const DRAFT_KEY = "member_registration_draft";
+    // ── Draft state ───────────────────────────────────────────────────────────
+    const [allDrafts,       setAllDrafts]       = useState([]);
+    const [activeDraftId,   setActiveDraftId]   = useState(null);
+    const [showDraftPicker, setShowDraftPicker] = useState(false);
 
+    const isLoaded = React.useRef(false);
 
+    // ── Search state ──────────────────────────────────────────────────────────
+    const [nationalitySearch, setNationalitySearch] = useState("");
+    const [bankSearch,        setBankSearch]        = useState("");
 
-    // ========================
-    // MASTER FORM STATE
-    // ========================
+    const filteredNationalities = nationalities.filter((n) =>
+        n.toLowerCase().includes(nationalitySearch.toLowerCase())
+    );
+    const filteredBanks = banks.filter((b) =>
+        b.toLowerCase().includes(bankSearch.toLowerCase())
+    );
 
-    const initialCustomerState = {
-        stationId: "",
-        branchId: "",
-        type: "",
-        serialNumber: 0,
-        personalIdentificationNumber: "",
-        individualType: 1,
-        individualFirstName: "",
-        individualLastName: "",
-        individualIdentityCardType: 1,
-        individualIdentityCardNumber: "",
-        individualPayrollNumbers: "",
-        individualSalutation: 1,
-        individualGender: "",
-        individualMaritalStatus: "",
-        individualNationality: "",
-        individualBirthDate: "",
-        individualEmploymentDesignation: "",
-        individualEmploymentTermsOfService: "",
-        individualEmploymentDate: "",
-        addressAddressLine1: "",
-        addressAddressLine2: "",
-        addressStreet: "",
-        addressPostalCode: "",
-        addressCity: "",
-        addressEmail: "",
-        addressLandLine: "",
-        addressMobileLine: "",
-        passportImageId: null,
-        signatureImageId: null,
-        identityCardFrontSideImageId: null,
-        identityCardBackSideImageId: null,
-        remarks: "",
-        recruitedBy: "SYSTEM",
-        recordStatus: 1,
-        createdBy: "SYSTEM",
-        createdDate: new Date().toISOString().split('T')[0], // Default to today
-        reference1: "",
-        bankName: "",
-        branchName: "",
-        registrationDate: new Date().toISOString().split('T')[0]
+    const today = new Date().toISOString().split("T")[0];
+    const totalNokPercentage = nextOfKins.reduce(
+        (sum, k) => sum + Number(k.nominatedPercentage || 0),
+        0
+    );
 
-    };
-    const [customer, setCustomer] = useState(initialCustomerState);
-    const [nextOfKins, setNextOfKins] = useState([
-        {
-            salutation: "",
-            gender: "",
-            relationship: "",
-            firstName: "",
-            lastName: "",
-            identityCardType: 1,
-            identityCardNumber: "",
-            addressAddressLine1: "",
-            addressStreet: "",
-            addressPostalCode: "",
-            addressCity: "",
-            addressEmail: "",
-            addressMobileLine: "",
-            nominatedPercentage: 0,
-            remarks: "",
-            createdBy: "SYSTEM",
-        },
-    ]);
+    // ── Load draft list when drawer opens ─────────────────────────────────────
+    useEffect(() => {
+        if (open) setAllDrafts(getAllDrafts());
+    }, [open]);
 
-    const handleSafeClose = () => {
-        // Check if user has entered data (e.g., checking if names are filled)
-        const hasData = customer.individualFirstName || customer.individualLastName || customer.individualIdentityCardNumber;
+    // ── Auto-save active draft on every change ────────────────────────────────
+    useEffect(() => {
+        if (!isLoaded.current || !open || !activeDraftId) return;
 
-        if (hasData) {
-            Swal.fire({
-                title: "Are you sure?",
-                text: "You have unsaved changes. The draft will be saved, but do you want to close this window?",
-                icon: "warning",
-                showCancelButton: true,
-                confirmButtonColor: "#4f46e5",
-                cancelButtonColor: "#d33",
-                confirmButtonText: "Yes, close it"
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    onClose();
-                }
-            });
-        } else {
-            onClose();
-        }
-    };
+        const currentDraft = getAllDrafts().find((d) => d.id === activeDraftId);
+        const draft = {
+            id:      activeDraftId,
+            label:
+                customer.individualFirstName || customer.individualLastName
+                    ? `${customer.individualLastName} ${customer.individualFirstName}`.trim()
+                    : currentDraft?.label || `Draft ${new Date().toLocaleString()}`,
+            savedAt:   new Date().toISOString(),
+            step,
+            customer,
+            nextOfKins,
+        };
 
-    const update = (key, value) => {
-        setCustomer(prev => ({ ...prev, [key]: value }));
-    };
+        saveDraftToStorage(draft);
+        setAllDrafts(getAllDrafts());
+    }, [customer, nextOfKins, step, open]);
 
-    const [step, setStep] = useState(1);
-    const next = () => setStep(s => s + 1);
-    const back = () => setStep(s => s - 1);
-
-    const updateCustomer = (key, value) => {
-        setCustomer(prev => ({ ...prev, [key]: value }));
-    };
+    // ── Field helpers ─────────────────────────────────────────────────────────
+    const update = (key, value) =>
+        setCustomer((prev) => ({ ...prev, [key]: value }));
 
     const updateNextOfKin = (index, key, value) => {
         const updated = [...nextOfKins];
@@ -151,85 +203,133 @@ export default function MemberRegistrationDrawer({ open, onClose, refresh }) {
         setNextOfKins(updated);
     };
 
-    const addNextOfKin = () => {
-        if (totalNokPercentage >= 100) {
-            Swal.fire(
-                "Limit reached",
-                "Total nominated percentage is already 100%",
-                "warning"
-            );
+    const next = () => setStep((s) => s + 1);
+    const back = () => setStep((s) => s - 1);
+
+    // ── Draft actions ─────────────────────────────────────────────────────────
+    const handleSaveAsDraft = () => {
+        const hasData =
+            customer.individualFirstName ||
+            customer.individualLastName ||
+            customer.individualIdentityCardNumber;
+
+        if (!hasData) {
+            Swal.fire("Nothing to save", "Fill in at least one field first.", "info");
             return;
         }
 
-        setNextOfKins([
-            ...nextOfKins,
-            {
-                salutation: "",
-                gender: "",
-                relationship: "",
-                firstName: "",
-                lastName: "",
-                identityCardType: 1,
-                identityCardNumber: "",
-                addressAddressLine1: "",
-                addressStreet: "",
-                addressPostalCode: "",
-                addressCity: "",
-                addressEmail: "",
-                addressMobileLine: "",
-                nominatedPercentage: 0,
-                remarks: "",
-                createdBy: "SYSTEM",
-            },
-        ]);
+        const draftId = activeDraftId || `draft_${Date.now()}`;
+        const draft = {
+            id:    draftId,
+            label:
+                customer.individualLastName || customer.individualFirstName
+                    ? `${customer.individualLastName} ${customer.individualFirstName}`.trim()
+                    : `Draft ${new Date().toLocaleString()}`,
+            savedAt:   new Date().toISOString(),
+            step,
+            customer,
+            nextOfKins,
+        };
+
+        saveDraftToStorage(draft);
+        setActiveDraftId(draftId);
+        isLoaded.current = true;
+        setAllDrafts(getAllDrafts());
+
+        Swal.fire({
+            toast:             true,
+            position:          "top-end",
+            icon:              "success",
+            title:             "Draft saved",
+            showConfirmButton: false,
+            timer:             2000,
+        });
     };
 
-    const removeNextOfKin = (index) => {
-        if (nextOfKins.length === 1) return; // prevent removing the last one
-        setNextOfKins(prev => prev.filter((_, i) => i !== index));
+    const handleLoadDraft = (draft) => {
+        setCustomer(draft.customer);
+        setNextOfKins(draft.nextOfKins);
+        setStep(draft.step || 1);
+        setActiveDraftId(draft.id);
+        setNationalitySearch(draft.customer.individualNationality || "");
+        setBankSearch(draft.customer.bankName || "");
+        setShowDraftPicker(false);
+        isLoaded.current = true;
     };
 
-    const payload = {
-        customer,
-        nextOfKins,
+    // ── Start a fresh blank form ───────────────────────────────────────────────
+    const handleNewForm = () => {
+        setCustomer({
+            ...initialCustomerState,
+            createdDate:      new Date().toISOString().split("T")[0],
+            registrationDate: new Date().toISOString().split("T")[0],
+        });
+        setNextOfKins([{ ...emptyNextOfKin }]);
+        setStep(1);
+        setActiveDraftId(null);
+        setNationalitySearch("");
+        setBankSearch("");
+        setShowDraftPicker(false);
+        setErrors({
+            addressEmail:                  "",
+            addressMobileLine:             "",
+            personalIdentificationNumber:  "",
+            individualIdentityCardNumber:  "",
+            nokMobileLine:                 "",
+            nokIdentityCardNumber:         "",
+        });
+        setIdExists(false);
+        isLoaded.current = false;
     };
 
-    console.log(payload);
+    const handleDeleteDraft = (draftId, e) => {
+        e.stopPropagation();
+        Swal.fire({
+            title:              "Delete this draft?",
+            icon:               "warning",
+            showCancelButton:   true,
+            confirmButtonColor: "#d33",
+            cancelButtonColor:  "#6366f1",
+            confirmButtonText:  "Delete",
+        }).then((result) => {
+            if (result.isConfirmed) {
+                deleteDraftFromStorage(draftId);
+                const updated = getAllDrafts();
+                setAllDrafts(updated);
+                if (activeDraftId === draftId) handleNewForm();
+            }
+        });
+    };
 
+    // ── Clear after successful submit ─────────────────────────────────────────
+    const clearDraft = () => {
+        if (activeDraftId) deleteDraftFromStorage(activeDraftId);
+        setAllDrafts(getAllDrafts());
+        contextClearDraft();
+        handleNewForm();
+    };
 
-
-
-
-    // ========================
-    // VALIDATE ID NUMBER
-    // ========================
+    // ── ID duplicate check ────────────────────────────────────────────────────
     const checkIfIdExists = async (idNumber) => {
         const trimmedId = idNumber?.trim();
-
         if (!trimmedId || trimmedId.length < 5) {
             setIdExists(false);
             return;
         }
-
         setCheckingId(true);
         try {
             const response = await fetch(
-                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/customers/search/identity-card?identityCardNumber=${trimmedId}&exactMatch=true`,
-                {
-                    headers: { "ngrok-skip-browser-warning": "true" },
-                }
+                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/customers/search/identity-card?identityCardNumber=${trimmedId}&exactMatch=true`
             );
-
             if (response.ok) {
                 const data = await response.json();
                 const exists = Array.isArray(data?.data) && data.data.length > 0;
-
                 setIdExists(exists);
-                setErrors(prev => ({
+                setErrors((prev) => ({
                     ...prev,
                     individualIdentityCardNumber: exists
                         ? "This ID number is already registered"
-                        : ""
+                        : "",
                 }));
             }
         } catch (err) {
@@ -239,259 +339,188 @@ export default function MemberRegistrationDrawer({ open, onClose, refresh }) {
         }
     };
 
-
-
-
-
-
-
-    // ========================
-    // PERSISTENCE LOGIC
-    // ========================
-
-    // LOAD DRAFT ON MOUNT
-
-    // Add a ref to track if initial load happened
-    const isLoaded = React.useRef(false);
-
-    useEffect(() => {
-        if (open) {
-            const savedDraft = localStorage.getItem(DRAFT_KEY);
-            if (savedDraft) {
-                try {
-                    const parsed = JSON.parse(savedDraft);
-                    if (parsed.customer) setCustomer(parsed.customer);
-                    if (parsed.nextOfKins) setNextOfKins(parsed.nextOfKins);
-                    if (parsed.step) setStep(parsed.step);
-                } catch (err) {
-                    console.error("Failed to parse draft", err);
-                }
-            }
-            isLoaded.current = true;
-        }
-    }, [open]); // Only load when drawer opens
-
-
-
-    // AUTO-SAVE ON EVERY CHANGE
-    // Update your SAVE effect
-    useEffect(() => {
-        if (!isLoaded.current || !open) return;
-
-        const draftData = {
-            customer,
-            nextOfKins,
-            step,
-            lastSaved: new Date().toISOString()
-        };
-        localStorage.setItem(DRAFT_KEY, JSON.stringify(draftData));
-    }, [customer, nextOfKins, step, open]);
-
-
-
-
-    // ========================
-    // CLEAR DRAFT FUNCTION
-    // ========================
-    const clearDraft = () => {
-        // 1. Remove from Browser Storage
-        localStorage.removeItem(DRAFT_KEY);
-
-        // 2. Reset React State to initial values
-        setCustomer(initialCustomerState);
-        setNextOfKins([
-            {
-                salutation: "",
-                gender: "",
-                relationship: "",
-                firstName: "",
-                lastName: "",
-                identityCardType: 1,
-                identityCardNumber: "",
-                addressAddressLine1: "",
-                addressStreet: "",
-                addressPostalCode: "",
-                addressCity: "",
-                addressEmail: "",
-                addressMobileLine: "",
-                nominatedPercentage: 0,
-                remarks: "",
-                createdBy: "SYSTEM",
-            },
-        ]);
-        setStep(1);
-
-        // 3. Reset internal "isLoaded" ref so auto-save doesn't immediately 
-        // rewrite the empty state back into localStorage until user types again
-        isLoaded.current = false;
-
-    }
-
-
-    // ========================
-    // SUBMIT HANDLER
-    // ========================
-    const handleSubmit = async () => {
-        // Validate required fields
-        if (!customer.individualFirstName || !customer.individualLastName) {
-            Swal.fire("Error", "First name and last name are required", "error");
-            return;
-        }
-
-        if (!customer.individualIdentityCardNumber) {
-            Swal.fire("Error", "ID/Passport number is required", "error");
-            return;
-        }
-
-        if (idExists) {
-            Swal.fire("Error", "This ID number is already registered. Please use a different ID.", "error");
-            return;
-        }
-
-        // Validate email if provided
-        if (customer.addressEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customer.addressEmail)) {
-            Swal.fire("Error", "Please enter a valid email address", "error");
-            return;
-        }
-
-        // Validate mobile if provided
-        if (customer.addressMobileLine && !/^\+254(7|1)\d{8}$/.test(customer.addressMobileLine)) {
-            Swal.fire("Error", "Phone must start with +254 and be 12 digits", "error");
-            return;
-        }
-
-        // Validate PIN format if provided
-        if (customer.personalIdentificationNumber && !/^[A-Z]\d{9}[A-Z]$/.test(customer.personalIdentificationNumber)) {
-            Swal.fire("Error", "KRA PIN must be in format A123456789B", "error");
-            return;
-        }
-
-        setLoading(true);
-
-
+    // ── Data fetches ──────────────────────────────────────────────────────────
+    const fetchCompanies = async () => {
         try {
-            const response = await fetch(
-                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/customers`,
-                {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "ngrok-skip-browser-warning": "true",
-                    },
-                    body: JSON.stringify(payload),
-                }
-            );
-
-            if (!response.ok) throw new Error("Failed to submit");
-
-            console.log(response);
-            const data = await response.json();
-
-            console.log(data);
-
-            if (data.success) {
-                Swal.fire("Success", data.message, "success");
-                clearDraft(); // <--- CLEAR DRAFT ON SUCCESS
-
-                //refresh();
-                //onClose();
-                if (refresh) refresh();
-                if (onClose) onClose();
-            } else {
-                Swal.fire("Error", data.message, "error");
-            }
-        } catch (err) {
-            Swal.fire("Error", "Failed to register member", "error");
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const loadStations = async () => {
-        try {
-            const res = await fetch(`${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/stations`, {
-                headers: { "ngrok-skip-browser-warning": "true" }
-            });
+            const res  = await fetch(`${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/companies`);
             const json = await res.json();
-            if (json.success) {
-                setStations(json.data);
-            }
+            if (json.success) setCompanies(json.data);
         } catch (err) {
-            console.error("Failed to load stations", err);
+            console.error("Failed to load companies", err);
         }
     };
 
     const loadAdministrativeDivision = async () => {
         try {
-            const res = await fetch(`${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/administrative-divisions`, {
-                headers: { "ngrok-skip-browser-warning": "true" }
-            });
+            const res  = await fetch(`${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/administrative-divisions`);
             const json = await res.json();
-            if (json.success) {
-                setAdministrativeDivision(json.data);
-            }
+            if (json.success) setAdministrativeDivision(json.data);
         } catch (err) {
-            console.error("Failed to load stations", err);
+            console.error("Failed to load administrative divisions", err);
         }
     };
 
     const fetchBranches = async () => {
         try {
-            const res = await fetch(
-                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/branches`,
-                { headers: { "ngrok-skip-browser-warning": "true" } }
-            );
+            const res  = await fetch(`${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/branches`);
             const json = await res.json();
             setBranches(json.data || []);
         } catch (err) {
             console.error("Fetch Branches Error:", err);
-        } finally {
-            setLoading(false);
         }
     };
 
     useEffect(() => {
-        loadStations();
+        fetchCompanies();
         loadAdministrativeDivision();
         fetchBranches();
     }, []);
 
+    // ── Image upload ──────────────────────────────────────────────────────────
     const toBase64 = (file) =>
         new Promise((resolve, reject) => {
             const reader = new FileReader();
             reader.readAsDataURL(file);
-            reader.onload = () => resolve(reader.result.split(",")[1]); // strip prefix
+            reader.onload  = () => resolve(reader.result.split(",")[1]);
             reader.onerror = reject;
         });
 
     const handleImageUpload = async (e, key) => {
         const file = e.target.files[0];
         if (!file) return;
-
         const base64 = await toBase64(file);
         update(key, base64);
     };
 
-    const totalNokPercentage = nextOfKins.reduce(
-        (sum, k) => sum + Number(k.nominatedPercentage || 0),
-        0
-    );
+    // ── Safe close ────────────────────────────────────────────────────────────
+    const handleSafeClose = () => {
+        const hasData =
+            customer.individualFirstName ||
+            customer.individualLastName ||
+            customer.individualIdentityCardNumber;
 
-    // Get today's date for max date validation
-    const today = new Date().toISOString().split('T')[0];
+        if (hasData && !activeDraftId) {
+            Swal.fire({
+                title:              "Save before closing?",
+                text:               "You have unsaved data. Save as draft so you can continue later?",
+                icon:               "warning",
+                showDenyButton:     true,
+                showCancelButton:   true,
+                confirmButtonColor: "#4f46e5",
+                confirmButtonText:  "Save Draft & Close",
+                denyButtonText:     "Close Without Saving",
+                cancelButtonText:   "Stay",
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    handleSaveAsDraft();
+                    onClose();
+                } else if (result.isDenied) {
+                    onClose();
+                }
+            });
+        } else {
+            onClose();
+        }
+    };
 
-    // Filter nationalities based on search
-    const [nationalitySearch, setNationalitySearch] = useState("");
-    const filteredNationalities = nationalities.filter(nationality =>
-        nationality.toLowerCase().includes(nationalitySearch.toLowerCase())
-    );
+    // ── Submit ────────────────────────────────────────────────────────────────
+    const handleSubmit = async () => {
+        if (!customer.individualFirstName || !customer.individualLastName) {
+            Swal.fire("Error", "First name and last name are required", "error");
+            return;
+        }
+        if (!customer.individualIdentityCardNumber) {
+            Swal.fire("Error", "ID/Passport number is required", "error");
+            return;
+        }
+        if (idExists) {
+            Swal.fire("Error", "This ID number is already registered.", "error");
+            return;
+        }
+        if (
+            customer.addressEmail &&
+            !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customer.addressEmail)
+        ) {
+            Swal.fire("Error", "Please enter a valid email address", "error");
+            return;
+        }
+        if (
+            customer.addressMobileLine &&
+            !/^\+254(7|1)\d{8}$/.test(customer.addressMobileLine)
+        ) {
+            Swal.fire("Error", "Phone must start with +254 and be 12 digits", "error");
+            return;
+        }
+        if (
+            customer.personalIdentificationNumber &&
+            !/^[A-Z]\d{9}[A-Z]$/.test(customer.personalIdentificationNumber)
+        ) {
+            Swal.fire("Error", "KRA PIN must be in format A123456789B", "error");
+            return;
+        }
 
-    // Filter banks based on search
-    const [bankSearch, setBankSearch] = useState("");
-    const filteredBanks = banks.filter(bank =>
-        bank.toLowerCase().includes(bankSearch.toLowerCase())
-    );
+        setLoading(true);
+        try {
+            const payload = getSubmitPayload();
+            console.log("Submitting payload:", JSON.stringify(payload, null, 2));
 
+            const response = await fetch(
+                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/customers`,
+                {
+                    method:  "POST",
+                    headers: {
+                        "Content-Type":              "application/json",
+                        "ngrok-skip-browser-warning": "true",
+                    },
+                    body: JSON.stringify(payload),
+                }
+            );
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || "Failed to submit");
+            }
+
+            const data = await response.json();
+
+            if (data.success) {
+                Swal.fire({
+                    icon:               "success",
+                    title:              "Success!",
+                    text:               data.message || "Member registered successfully",
+                    confirmButtonColor: "#4f46e5",
+                });
+                clearDraft();
+                if (refresh) refresh();
+                if (onClose)  onClose();
+            } else {
+                Swal.fire("Error", data.message || "Failed to register member", "error");
+            }
+        } catch (err) {
+            console.error("Submit Error:", err);
+            Swal.fire("Error", err.message || "Failed to register member", "error");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // ── Next of Kin helpers ───────────────────────────────────────────────────
+    const addNextOfKin = () => {
+        if (totalNokPercentage >= 100) {
+            Swal.fire("Limit reached", "Total nominated percentage is already 100%", "warning");
+            return;
+        }
+        setNextOfKins([...nextOfKins, { ...emptyNextOfKin }]);
+    };
+
+    const removeNextOfKin = (index) => {
+        if (nextOfKins.length === 1) return;
+        setNextOfKins((prev) => prev.filter((_, i) => i !== index));
+    };
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // RENDER
+    // ─────────────────────────────────────────────────────────────────────────
     return (
         <AnimatePresence>
             {open && (
@@ -502,7 +531,7 @@ export default function MemberRegistrationDrawer({ open, onClose, refresh }) {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 0.4 }}
                         exit={{ opacity: 0 }}
-                        onClick={onClose}
+                        onClick={handleSafeClose}
                     />
 
                     {/* DRAWER */}
@@ -513,54 +542,175 @@ export default function MemberRegistrationDrawer({ open, onClose, refresh }) {
                         exit={{ x: "100%" }}
                         transition={{ type: "spring", stiffness: 280, damping: 28 }}
                     >
-
                         {/* HEADER */}
-                        <div className="p-4 flex justify-between items-center bg-indigo-700 rounded-2xl m-2">
-                            <h2 className="font-bold text-xl text-white">Member Registration</h2>
-                            <Button variant="outline" size="sm" onClick={onClose}>
-                                Close
-                            </Button>
+                        <div className="p-4 bg-indigo-700 rounded-2xl m-2">
+                            <div className="flex justify-between items-center">
+                                <div>
+                                    <h2 className="font-bold text-xl text-white">
+                                        Member Registration
+                                    </h2>
+                                    {activeDraftId && (
+                                        <p className="text-indigo-200 text-xs mt-0.5">
+                                            📝 Editing —{" "}
+                                            {allDrafts.find((d) => d.id === activeDraftId)?.label || "Draft"}
+                                        </p>
+                                    )}
+                                </div>
+
+                                <div className="flex gap-2 items-center">
+                                    <Button
+                                        type="button"
+                                        onClick={handleSaveAsDraft}
+                                        size="sm"
+                                        className="bg-indigo-500 hover:bg-indigo-400 text-white text-xs"
+                                    >
+                                        Save Draft
+                                    </Button>
+
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowDraftPicker((v) => !v)}
+                                        className="relative text-white text-xs bg-indigo-500 hover:bg-indigo-400 px-3 py-1.5 rounded-lg"
+                                    >
+                                        Drafts
+                                        {allDrafts.length > 0 && (
+                                            <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center">
+                                                {allDrafts.length}
+                                            </span>
+                                        )}
+                                    </button>
+
+                                    <Button variant="outline" size="sm" onClick={handleSafeClose}>
+                                        Close
+                                    </Button>
+                                </div>
+                            </div>
+
+                            {/* DRAFT PICKER */}
+                            <AnimatePresence>
+                                {showDraftPicker && (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: -8 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, y: -8 }}
+                                        className="mt-3 bg-white rounded-xl p-3 shadow-lg"
+                                    >
+                                        <div className="flex justify-between items-center mb-2">
+                                            <span className="text-indigo-700 font-semibold text-sm">
+                                                Saved Drafts
+                                            </span>
+                                            <button
+                                                type="button"
+                                                onClick={handleNewForm}
+                                                className="text-xs text-indigo-600 hover:underline"
+                                            >
+                                                + New Form
+                                            </button>
+                                        </div>
+
+                                        {allDrafts.length === 0 ? (
+                                            <p className="text-gray-400 text-xs text-center py-2">
+                                                No drafts saved yet
+                                            </p>
+                                        ) : (
+                                            <ul className="space-y-2 max-h-52 overflow-y-auto">
+                                                {allDrafts.map((draft) => (
+                                                    <li
+                                                        key={draft.id}
+                                                        onClick={() => handleLoadDraft(draft)}
+                                                        className={`flex justify-between items-center p-2 rounded-lg cursor-pointer text-sm hover:bg-indigo-50 ${
+                                                            activeDraftId === draft.id
+                                                                ? "bg-indigo-100 border border-indigo-300"
+                                                                : "bg-gray-50"
+                                                        }`}
+                                                    >
+                                                        <div>
+                                                            <p className="font-medium text-gray-700">
+                                                                {draft.label}
+                                                            </p>
+                                                            <p className="text-gray-400 text-[11px]">
+                                                                Step {draft.step || 1} of 4 · Saved{" "}
+                                                                {new Date(draft.savedAt).toLocaleString()}
+                                                            </p>
+                                                        </div>
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => handleDeleteDraft(draft.id, e)}
+                                                            className="text-red-400 hover:text-red-600 text-xs ml-3 shrink-0"
+                                                        >
+                                                            Delete
+                                                        </button>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        )}
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
                         </div>
 
                         <div className="grid grid-cols-12 h-[88vh] overflow-hidden p-3">
 
-                            {/* LEFT STEPS NAVIGATION */}
+                            {/* LEFT SIDEBAR */}
                             <aside className="col-span-3 bg-gray-200 p-3 rounded-lg">
-                                {[
-                                    "Personal Details",
-                                    "Next of Kin",
-                                    "Uploads",
-                                ].map((label, index) => (
+                                    {["Personal Details", "Employment Details", "Next of Kin", "Uploads"].map((label, index) => (
                                     <Card
                                         key={index}
-                                        className={`p-3 mb-2 cursor-pointer border 
-                                        ${step === index + 1
+                                        className={`p-3 mb-2 cursor-pointer border ${
+                                            step === index + 1
                                                 ? "bg-indigo-700 border-indigo-500 text-white"
                                                 : "hover:bg-gray-100"
-                                            }
-                                        `}
+                                        }`}
                                         onClick={() => setStep(index + 1)}
                                     >
                                         <p className="font-medium text-sm">{label}</p>
                                     </Card>
                                 ))}
+
+                                {allDrafts.length > 0 && (
+                                    <div className="mt-4">
+                                        <p className="text-xs font-semibold text-gray-500 mb-2 px-1">
+                                            SAVED DRAFTS
+                                        </p>
+                                        {allDrafts.map((draft) => (
+                                            <div
+                                                key={draft.id}
+                                                onClick={() => handleLoadDraft(draft)}
+                                                className={`p-2 mb-1 rounded-lg cursor-pointer text-xs ${
+                                                    activeDraftId === draft.id
+                                                        ? "bg-indigo-200 border border-indigo-400"
+                                                        : "bg-white hover:bg-indigo-50"
+                                                }`}
+                                            >
+                                                <p className="font-medium text-gray-700 truncate">
+                                                    {draft.label}
+                                                </p>
+                                                <p className="text-gray-400 text-[10px]">
+                                                    Step {draft.step || 1}/4
+                                                </p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
                             </aside>
 
-                            {/* RIGHT CONTENT */}
+                            {/* MAIN CONTENT */}
                             <main className="col-span-9 p-6 overflow-y-auto">
 
-                                {/* STEP 1 – PERSONAL INFO */}
+                                {/* ── STEP 1: PERSONAL INFO ── */}
                                 {step === 1 && (
                                     <section>
-                                        <h3 className="text-lg font-semibold mb-3 bg-indigo-700 text-white p-3 rounded-2xl">Personal Information</h3>
+                                        <h3 className="text-lg font-semibold mb-3 bg-indigo-700 text-white p-3 rounded-2xl">
+                                            Personal Information
+                                        </h3>
 
                                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+
                                             <div>
                                                 <Label>Type</Label>
                                                 <select
                                                     value={customer.type}
                                                     onChange={(e) => update("type", e.target.value)}
-                                                    required
                                                     className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                                                 >
                                                     <option value="">Select Member Type</option>
@@ -570,23 +720,32 @@ export default function MemberRegistrationDrawer({ open, onClose, refresh }) {
                                                     <option value="4">MicroCredit</option>
                                                 </select>
                                             </div>
+
+                                            
+
                                             <div>
+    <Label>First Name *</Label>
+    <Input
+        value={customer.individualFirstName}
+        onChange={(e) => update("individualFirstName", e.target.value)}
+        placeholder="Enter first name"
+    />
+</div>
+
+<div>
+    <Label>Middle Name</Label>
+    <Input
+        value={customer.individualMiddleName}
+        onChange={(e) => update("individualMiddleName", e.target.value)}
+        placeholder="Enter middle name"
+    />
+</div>
+<div>
                                                 <Label>Surname *</Label>
                                                 <Input
                                                     value={customer.individualLastName}
-                                                    onChange={e => update("individualLastName", e.target.value)}
-                                                    required
+                                                    onChange={(e) => update("individualLastName", e.target.value)}
                                                     placeholder="Enter surname"
-                                                />
-                                            </div>
-
-                                            <div>
-                                                <Label>Other Name *</Label>
-                                                <Input
-                                                    required
-                                                    value={customer.individualFirstName}
-                                                    onChange={e => update("individualFirstName", e.target.value)}
-                                                    placeholder="Enter other name"
                                                 />
                                             </div>
 
@@ -597,17 +756,13 @@ export default function MemberRegistrationDrawer({ open, onClose, refresh }) {
                                                         value={customer.individualIdentityCardNumber}
                                                         onChange={(e) => {
                                                             update("individualIdentityCardNumber", e.target.value);
-                                                            setErrors(prev => ({ ...prev, individualIdentityCardNumber: "" }));
+                                                            setErrors((prev) => ({ ...prev, individualIdentityCardNumber: "" }));
                                                             setIdExists(false);
                                                         }}
                                                         onBlur={() => {
                                                             const trimmed = customer.individualIdentityCardNumber?.trim();
-
                                                             update("individualIdentityCardNumber", trimmed);
-
-                                                            if (trimmed && trimmed.length >= 5) {
-                                                                checkIfIdExists(trimmed);
-                                                            }
+                                                            if (trimmed && trimmed.length >= 5) checkIfIdExists(trimmed);
                                                         }}
                                                         className={
                                                             errors.individualIdentityCardNumber || idExists
@@ -615,12 +770,10 @@ export default function MemberRegistrationDrawer({ open, onClose, refresh }) {
                                                                 : ""
                                                         }
                                                         placeholder="Enter ID/Passport number"
-                                                        required
                                                     />
-
                                                     {checkingId && (
                                                         <div className="absolute right-2 top-2">
-                                                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-900"></div>
+                                                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-900" />
                                                         </div>
                                                     )}
                                                 </div>
@@ -636,13 +789,12 @@ export default function MemberRegistrationDrawer({ open, onClose, refresh }) {
                                                 )}
                                             </div>
 
-
                                             <div>
                                                 <Label>Date of Birth</Label>
                                                 <Input
                                                     type="date"
                                                     value={customer.individualBirthDate}
-                                                    onChange={e => update("individualBirthDate", e.target.value)}
+                                                    onChange={(e) => update("individualBirthDate", e.target.value)}
                                                     max={today}
                                                 />
                                             </div>
@@ -653,34 +805,32 @@ export default function MemberRegistrationDrawer({ open, onClose, refresh }) {
                                                     placeholder="+2547XXXXXXXX"
                                                     value={customer.addressMobileLine}
                                                     onChange={(e) => {
-                                                        update("addressMobileLine", e.target.value);
-                                                        setErrors(prev => ({ ...prev, addressMobileLine: "" }));
+                                                        let value = e.target.value;
+                                                        if (value && !value.startsWith("+254") && !value.startsWith("0")) {
+                                                            value = "+254" + value.replace(/^254/, "");
+                                                        }
+                                                        update("addressMobileLine", value);
+                                                        setErrors((prev) => ({ ...prev, addressMobileLine: "" }));
                                                     }}
                                                     onBlur={() => {
                                                         if (
                                                             customer.addressMobileLine &&
                                                             !/^\+254(7|1)\d{8}$/.test(customer.addressMobileLine)
                                                         ) {
-                                                            setErrors(prev => ({
+                                                            setErrors((prev) => ({
                                                                 ...prev,
-                                                                addressMobileLine:
-                                                                    "Phone must start with +254 and be 12 digits",
+                                                                addressMobileLine: "Phone must start with +254 and be 12 digits",
                                                             }));
                                                         }
                                                     }}
-                                                    className={
-                                                        errors.addressMobileLine
-                                                            ? "border-red-500 focus-visible:ring-red-500"
-                                                            : ""
-                                                    }
+                                                    className={errors.addressMobileLine ? "border-red-500 focus-visible:ring-red-500" : ""}
                                                 />
-
                                                 {errors.addressMobileLine && (
-                                                    <p className="text-sm text-red-500 mt-1">
-                                                        {errors.addressMobileLine}
-                                                    </p>
+                                                    <p className="text-sm text-red-500 mt-1">{errors.addressMobileLine}</p>
                                                 )}
+                                                <p className="text-xs text-gray-400 mt-1">Format: +254712345678</p>
                                             </div>
+
                                             <div>
                                                 <Label>Landline</Label>
                                                 <Input
@@ -697,31 +847,24 @@ export default function MemberRegistrationDrawer({ open, onClose, refresh }) {
                                                     value={customer.addressEmail}
                                                     onChange={(e) => {
                                                         update("addressEmail", e.target.value);
-                                                        setErrors(prev => ({ ...prev, addressEmail: "" }));
+                                                        setErrors((prev) => ({ ...prev, addressEmail: "" }));
                                                     }}
                                                     onBlur={() => {
                                                         if (
                                                             customer.addressEmail &&
                                                             !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customer.addressEmail)
                                                         ) {
-                                                            setErrors(prev => ({
+                                                            setErrors((prev) => ({
                                                                 ...prev,
                                                                 addressEmail: "Enter a valid email address",
                                                             }));
                                                         }
                                                     }}
-                                                    className={
-                                                        errors.addressEmail
-                                                            ? "border-red-500 focus-visible:ring-red-500"
-                                                            : ""
-                                                    }
+                                                    className={errors.addressEmail ? "border-red-500 focus-visible:ring-red-500" : ""}
                                                     placeholder="email@example.com"
                                                 />
-
                                                 {errors.addressEmail && (
-                                                    <p className="text-sm text-red-500 mt-1">
-                                                        {errors.addressEmail}
-                                                    </p>
+                                                    <p className="text-sm text-red-500 mt-1">{errors.addressEmail}</p>
                                                 )}
                                             </div>
 
@@ -735,49 +878,35 @@ export default function MemberRegistrationDrawer({ open, onClose, refresh }) {
                                                     <option value="">Select Marital Status</option>
                                                     <option value="1">Single</option>
                                                     <option value="2">Married</option>
-                                                    <option value="3">Divorced</option>
-                                                    <option value="4">Widowed</option>
-                                                    <option value="5">Separated</option>
+                                                    <option value="3">Other</option>
+                                                  
                                                 </select>
                                             </div>
 
                                             <div>
-                                                <Label>KRA PIN (Optional)</Label>
+                                                <Label>KRA PIN </Label>
                                                 <Input
                                                     placeholder="A123456789B"
                                                     value={customer.personalIdentificationNumber}
                                                     onChange={(e) => {
-                                                        update(
-                                                            "personalIdentificationNumber",
-                                                            e.target.value.toUpperCase()
-                                                        );
-                                                        setErrors(prev => ({ ...prev, personalIdentificationNumber: "" }));
+                                                        update("personalIdentificationNumber", e.target.value.toUpperCase());
+                                                        setErrors((prev) => ({ ...prev, personalIdentificationNumber: "" }));
                                                     }}
                                                     onBlur={() => {
                                                         if (
                                                             customer.personalIdentificationNumber &&
-                                                            !/^[A-Z]\d{9}[A-Z]$/.test(
-                                                                customer.personalIdentificationNumber
-                                                            )
+                                                            !/^[A-Z]\d{9}[A-Z]$/.test(customer.personalIdentificationNumber)
                                                         ) {
-                                                            setErrors(prev => ({
+                                                            setErrors((prev) => ({
                                                                 ...prev,
-                                                                personalIdentificationNumber:
-                                                                    "KRA PIN must be in format A123456789B",
+                                                                personalIdentificationNumber: "KRA PIN must be in format A123456789B",
                                                             }));
                                                         }
                                                     }}
-                                                    className={
-                                                        errors.personalIdentificationNumber
-                                                            ? "border-red-500 focus-visible:ring-red-500"
-                                                            : ""
-                                                    }
+                                                    className={errors.personalIdentificationNumber ? "border-red-500 focus-visible:ring-red-500" : ""}
                                                 />
-
                                                 {errors.personalIdentificationNumber && (
-                                                    <p className="text-sm text-red-500 mt-1">
-                                                        {errors.personalIdentificationNumber}
-                                                    </p>
+                                                    <p className="text-sm text-red-500 mt-1">{errors.personalIdentificationNumber}</p>
                                                 )}
                                             </div>
 
@@ -793,11 +922,12 @@ export default function MemberRegistrationDrawer({ open, onClose, refresh }) {
                                                     <option value="2">Female</option>
                                                 </select>
                                             </div>
+
                                             <div>
                                                 <Label>City</Label>
                                                 <Input
                                                     value={customer.addressCity}
-                                                    onChange={e => update("addressCity", e.target.value)}
+                                                    onChange={(e) => update("addressCity", e.target.value)}
                                                     placeholder="Enter city"
                                                 />
                                             </div>
@@ -806,10 +936,11 @@ export default function MemberRegistrationDrawer({ open, onClose, refresh }) {
                                                 <Label>Postal Code</Label>
                                                 <Input
                                                     value={customer.addressPostalCode}
-                                                    onChange={e => update("addressPostalCode", e.target.value)}
+                                                    onChange={(e) => update("addressPostalCode", e.target.value)}
                                                     placeholder="00100"
                                                 />
                                             </div>
+
                                             <div>
                                                 <Label>Place Of Birth</Label>
                                                 <Input
@@ -819,7 +950,6 @@ export default function MemberRegistrationDrawer({ open, onClose, refresh }) {
                                                 />
                                             </div>
 
-                                            {/* FIXED: Nationality Field with Auto-Population */}
                                             <div>
                                                 <Label>Nationality</Label>
                                                 <div className="relative">
@@ -830,7 +960,6 @@ export default function MemberRegistrationDrawer({ open, onClose, refresh }) {
                                                             const value = e.target.value;
                                                             setNationalitySearch(value);
                                                             setShowNationalityDropdown(true);
-
                                                             if (value !== customer.individualNationality) {
                                                                 update("individualNationality", "");
                                                             }
@@ -840,51 +969,30 @@ export default function MemberRegistrationDrawer({ open, onClose, refresh }) {
                                                             setNationalitySearch(customer.individualNationality || "");
                                                         }}
                                                         onBlur={() => {
-                                                            // Delay so click can register
                                                             setTimeout(() => setShowNationalityDropdown(false), 150);
                                                         }}
                                                         placeholder="Search nationality..."
                                                         className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                                                     />
-
-
-                                                    {/* Dropdown list */}
-                                                    {showNationalityDropdown && nationalitySearch && filteredNationalities.length > 0 && (
-                                                        <div className="absolute z-10 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-48 overflow-y-auto mt-1">
-                                                            {filteredNationalities.map((nationality) => (
-                                                                <div
-                                                                    key={nationality}
-                                                                    className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
-                                                                    onMouseDown={() => {
-                                                                        update("individualNationality", nationality);
-                                                                        setNationalitySearch(nationality);
-                                                                        setShowNationalityDropdown(false); // 👈 closes dropdown
-                                                                    }}
-                                                                >
-                                                                    {nationality}
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    )}
-
-
-                                                    {/* Hidden select for form submission */}
-                                                    <select
-                                                        value={customer.individualNationality}
-                                                        onChange={(e) => {
-                                                            update("individualNationality", e.target.value);
-                                                            setNationalitySearch(e.target.value);
-                                                        }}
-                                                        className="hidden"
-                                                    >
-                                                        <option value="">Select Nationality</option>
-                                                        {filteredNationalities.map((nationality) => (
-                                                            <option key={nationality} value={nationality}>
-                                                                {nationality}
-                                                            </option>
-                                                        ))}
-                                                    </select>
-
+                                                    {showNationalityDropdown &&
+                                                        nationalitySearch &&
+                                                        filteredNationalities.length > 0 && (
+                                                            <div className="absolute z-10 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-48 overflow-y-auto mt-1">
+                                                                {filteredNationalities.map((nationality) => (
+                                                                    <div
+                                                                        key={nationality}
+                                                                        className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                                                                        onMouseDown={() => {
+                                                                            update("individualNationality", nationality);
+                                                                            setNationalitySearch(nationality);
+                                                                            setShowNationalityDropdown(false);
+                                                                        }}
+                                                                    >
+                                                                        {nationality}
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        )}
                                                     {customer.individualNationality && (
                                                         <p className="text-xs text-gray-500 mt-1">
                                                             Selected: {customer.individualNationality}
@@ -901,7 +1009,27 @@ export default function MemberRegistrationDrawer({ open, onClose, refresh }) {
                                                     placeholder="Enter payroll number"
                                                 />
                                             </div>
-
+                                          { false &&(
+                                            <div>
+                                                <Label>Company</Label>
+                                                <Select
+                                                    onValueChange={(value) => update("companyId", value)}
+                                                    value={customer.companyId}
+                                                >
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder="Select Company" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {companies.map((c) => (
+                                                            <SelectItem key={c.Id} value={c.Id}>
+                                                                {c.Description}
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+)}
+                                        
                                             <div>
                                                 <Label>Branch</Label>
                                                 <Select
@@ -911,7 +1039,6 @@ export default function MemberRegistrationDrawer({ open, onClose, refresh }) {
                                                     <SelectTrigger>
                                                         <SelectValue placeholder="Select branch" />
                                                     </SelectTrigger>
-
                                                     <SelectContent>
                                                         {branches.map((b) => (
                                                             <SelectItem key={b.Id} value={b.Id}>
@@ -921,41 +1048,15 @@ export default function MemberRegistrationDrawer({ open, onClose, refresh }) {
                                                     </SelectContent>
                                                 </Select>
                                             </div>
+                                        
 
-                                            <div>
-                                                <Label>Station</Label>
-                                                <Select
-                                                    onValueChange={(value) => update("stationId", value)}
-                                                    value={customer.stationId}
-                                                >
-                                                    <SelectTrigger>
-                                                        <SelectValue placeholder="Select station" />
-                                                    </SelectTrigger>
-
-                                                    <SelectContent>
-                                                        {stations.map((s) => (
-                                                            <SelectItem key={s.Id} value={s.Id}>
-                                                                {s.Description}
-                                                            </SelectItem>
-                                                        ))}
-                                                    </SelectContent>
-                                                </Select>
-                                            </div>
-
-                                            <div>
-                                                <Label>Designation</Label>
-                                                <Input
-                                                    value={customer.individualEmploymentDesignation}
-                                                    onChange={e => update("individualEmploymentDesignation", e.target.value)}
-                                                    placeholder="Enter designation"
-                                                />
-                                            </div>
+                                            
 
                                             <div>
                                                 <Label>Terms of Service</Label>
                                                 <select
                                                     value={customer.individualEmploymentTermsOfService}
-                                                    onChange={e => update("individualEmploymentTermsOfService", e.target.value)}
+                                                    onChange={(e) => update("individualEmploymentTermsOfService", e.target.value)}
                                                     className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                                                 >
                                                     <option value="">Select Terms of Service</option>
@@ -966,28 +1067,27 @@ export default function MemberRegistrationDrawer({ open, onClose, refresh }) {
                                                     <option value="5">Unemployed</option>
                                                 </select>
                                             </div>
+
                                             <div>
                                                 <Label>Registration Date</Label>
                                                 <Input
                                                     type="date"
                                                     value={customer.registrationDate}
-                                                    onChange={e => update("registrationDate", e.target.value)}
+                                                    onChange={(e) => update("registrationDate", e.target.value)}
                                                     max={today}
                                                 />
-                                                <p className="text-xs text-gray-500 mt-1">
-                                                    Cannot select future dates
-                                                </p>
+                                                <p className="text-xs text-gray-500 mt-1">Cannot select future dates</p>
                                             </div>
+
                                             <div>
                                                 <Label>Bank Account Number</Label>
                                                 <Input
                                                     value={customer.reference1}
-                                                    onChange={e => update("reference1", e.target.value)}
+                                                    onChange={(e) => update("reference1", e.target.value)}
                                                     placeholder="Enter bank account number"
                                                 />
                                             </div>
 
-                                            {/* FIXED: Bank Name Field with Auto-Population */}
                                             <div>
                                                 <Label>Bank Name</Label>
                                                 <div className="relative">
@@ -997,23 +1097,12 @@ export default function MemberRegistrationDrawer({ open, onClose, refresh }) {
                                                         onChange={(e) => {
                                                             const value = e.target.value;
                                                             setBankSearch(value);
-                                                            // If user types something different from current selection, clear selection
-                                                            if (value !== customer.bankName) {
-                                                                update("bankName", "");
-                                                            }
+                                                            if (value !== customer.bankName) update("bankName", "");
                                                         }}
-                                                        onFocus={() => {
-                                                            if (customer.bankName) {
-                                                                setBankSearch(customer.bankName);
-                                                            } else {
-                                                                setBankSearch("");
-                                                            }
-                                                        }}
+                                                        onFocus={() => setBankSearch(customer.bankName || "")}
                                                         placeholder="Search bank..."
                                                         className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                                                     />
-
-                                                    {/* Dropdown list */}
                                                     {bankSearch && filteredBanks.length > 0 && (
                                                         <div className="absolute z-10 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-48 overflow-y-auto mt-1">
                                                             {filteredBanks.map((bank) => (
@@ -1030,24 +1119,6 @@ export default function MemberRegistrationDrawer({ open, onClose, refresh }) {
                                                             ))}
                                                         </div>
                                                     )}
-
-                                                    {/* Hidden select for form submission */}
-                                                    <select
-                                                        value={customer.bankName}
-                                                        onChange={(e) => {
-                                                            update("bankName", e.target.value);
-                                                            setBankSearch(e.target.value);
-                                                        }}
-                                                        className="hidden"
-                                                    >
-                                                        <option value="">Select Bank</option>
-                                                        {filteredBanks.map((bank) => (
-                                                            <option key={bank} value={bank}>
-                                                                {bank}
-                                                            </option>
-                                                        ))}
-                                                    </select>
-
                                                     {customer.bankName && (
                                                         <p className="text-xs text-gray-500 mt-1">
                                                             Selected: {customer.bankName}
@@ -1060,71 +1131,121 @@ export default function MemberRegistrationDrawer({ open, onClose, refresh }) {
                                                 <Label>Branch Name</Label>
                                                 <Input
                                                     value={customer.branchName}
-                                                    onChange={e => update("branchName", e.target.value)}
+                                                    onChange={(e) => update("branchName", e.target.value)}
                                                     placeholder="Enter branch name"
                                                 />
                                             </div>
-
-                                        </div>
+{[
+    ["alternativePhone", "Alternative Phone No."],
+    ["postalAddress", "Postal Address"],
+    ["county", "County of Residence"],
+    ["subCountyWard", "Sub-County / Ward"],
+    ["townEstate", "Town / Estate"],
+    ["homeCounty", "Home County"],
+  
+].map(([key, label]) => (
+    <div key={key}>
+        <Label>{label}</Label>
+        <Input
+            value={customer[key] || ""}
+            onChange={(e) => update(key, e.target.value)}
+        />
+    </div>
+))}
+                                      </div>  
                                     </section>
                                 )}
+                                {/* ── STEP 2: EMPLOYMENT / BUSINESS ── */}
+{step === 2 && (
+    <section>
+        <h3 className="text-lg font-semibold mb-3 bg-indigo-700 text-white p-3 rounded-2xl">
+            Employment / Business Details
+        </h3>
 
-                                {/* STEP 2 – NEXT OF KIN */}
-                                {step === 2 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <Label>Occupation</Label>
+                <Input
+                    value={customer.individualEmploymentDesignation}
+                    onChange={(e) => update("individualEmploymentDesignation", e.target.value)}
+                    placeholder="Enter occupation"
+                />
+            </div>
+            <div>
+                <Label>Employer / Business Name</Label>
+                <Input
+                    value={customer.employerName}
+                    onChange={(e) => update("employerName", e.target.value)}
+                />
+            </div>
+            <div>
+                <Label>Employer / Business Address</Label>
+                <Input
+                    value={customer.employerAddress}
+                    onChange={(e) => update("employerAddress", e.target.value)}
+                />
+            </div>
+            <div>
+                <Label>Vehicle Reg. No. (if applicable)</Label>
+                <Input
+                    value={customer.vehicleRegNo}
+                    onChange={(e) => update("vehicleRegNo", e.target.value.toUpperCase())}
+                    placeholder="KAA 123A"
+                />
+            </div>
+        </div>
+    </section>
+)}
+
+                                {/* ── STEP 2: NEXT OF KIN ── */}
+                                {step === 3 && (
                                     <section>
-                                        <h3 className="text-lg font-semibold mb-2 bg-indigo-700 text-white p-3 rounded-2xl">Next of Kin</h3>
+                                        <h3 className="text-lg font-semibold mb-2 bg-indigo-700 text-white p-3 rounded-2xl">
+                                            Next of Kin
+                                        </h3>
                                         <div className="flex justify-end items-center p-2">
-                                            <p className={`mt-4 font-semibold ${totalNokPercentage === 100 ? "text-green-600" : "text-red-600"
-                                                }`}>
+                                            <p className={`mt-4 font-semibold ${totalNokPercentage === 100 ? "text-green-600" : "text-red-600"}`}>
                                                 Total Allocation: {totalNokPercentage}% / 100%
                                             </p>
-
                                         </div>
 
                                         {nextOfKins.map((nok, index) => (
-                                            <div
-                                                key={index}
-                                                className=" mb-6 p-4 border rounded-lg"
-                                            >
-                                                {/* REMOVE BUTTON */}
+                                            <div key={index} className="mb-6 p-4 border rounded-lg">
                                                 {nextOfKins.length > 1 && (
                                                     <div className="flex justify-between items-center bg-gray-200 rounded-md p-2 px-4 mb-3">
                                                         <h3 className="font-medium">Next of Kin {index + 1}</h3>
                                                         <Button
                                                             onClick={() => removeNextOfKin(index)}
-                                                            className="text-sm bg-red-600 hover:bg-red-800 text-red-100 hover:text-red-100"
+                                                            className="text-sm bg-red-600 hover:bg-red-800 text-red-100"
                                                         >
                                                             Remove
                                                         </Button>
                                                     </div>
                                                 )}
-                                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+
+                                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                                     <div>
-                                                        <Label>First Name</Label>
+                                                        <Label>First Name *</Label>
                                                         <Input
                                                             value={nok.firstName}
-                                                            onChange={(e) =>
-                                                                updateNextOfKin(index, "firstName", e.target.value)
-                                                            }
+                                                            onChange={(e) => updateNextOfKin(index, "firstName", e.target.value)}
+                                                            placeholder="Enter first name"
                                                         />
                                                     </div>
-
                                                     <div>
-                                                        <Label>Last Name</Label>
+                                                        <Label>Last Name *</Label>
                                                         <Input
                                                             value={nok.lastName}
-                                                            onChange={(e) =>
-                                                                updateNextOfKin(index, "lastName", e.target.value)
-                                                            }
+                                                            onChange={(e) => updateNextOfKin(index, "lastName", e.target.value)}
+                                                            placeholder="Enter last name"
                                                         />
                                                     </div>
+                                                    
                                                     <div>
                                                         <Label>Gender</Label>
                                                         <select
                                                             value={nok.gender}
-                                                            onChange={(e) =>
-                                                                updateNextOfKin(index, "gender", e.target.value)
-                                                            }
+                                                            onChange={(e) => updateNextOfKin(index, "gender", e.target.value)}
                                                             className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                                                         >
                                                             <option value="">Select Gender</option>
@@ -1132,14 +1253,11 @@ export default function MemberRegistrationDrawer({ open, onClose, refresh }) {
                                                             <option value="2">Female</option>
                                                         </select>
                                                     </div>
-
                                                     <div>
                                                         <Label>Relationship</Label>
                                                         <select
                                                             value={nok.relationship}
-                                                            onChange={(e) =>
-                                                                updateNextOfKin(index, "relationship", e.target.value)
-                                                            }
+                                                            onChange={(e) => updateNextOfKin(index, "relationship", e.target.value)}
                                                             className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                                                         >
                                                             <option value="">Select Relationship</option>
@@ -1151,53 +1269,92 @@ export default function MemberRegistrationDrawer({ open, onClose, refresh }) {
                                                             <option value="6">Other</option>
                                                         </select>
                                                     </div>
-
                                                     <div>
-                                                        <Label>Percentage</Label>
+                                                        <Label>ID / Passport Number</Label>
+                                                        <Input
+                                                            value={nok.identityCardNumber}
+                                                            onChange={(e) => updateNextOfKin(index, "identityCardNumber", e.target.value)}
+                                                            placeholder="Enter ID/Passport number"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <Label>Mobile Number</Label>
+                                                        <Input
+                                                            value={nok.addressMobileLine}
+                                                            onChange={(e) => {
+                                                                updateNextOfKin(index, "addressMobileLine", e.target.value);
+                                                                setErrors((prev) => ({ ...prev, nokMobileLine: "" }));
+                                                            }}
+                                                            onBlur={() => {
+                                                                if (
+                                                                    nok.addressMobileLine &&
+                                                                    !/^\+254(7|1)\d{8}$/.test(nok.addressMobileLine)
+                                                                ) {
+                                                                    setErrors((prev) => ({
+                                                                        ...prev,
+                                                                        nokMobileLine: "Phone must start with +254 and be 12 digits",
+                                                                    }));
+                                                                }
+                                                            }}
+                                                            placeholder="+2547XXXXXXXX"
+                                                            className={errors.nokMobileLine ? "border-red-500 focus-visible:ring-red-500" : ""}
+                                                        />
+                                                        {errors.nokMobileLine && (
+                                                            <p className="text-sm text-red-500 mt-1">{errors.nokMobileLine}</p>
+                                                        )}
+                                                        <p className="text-xs text-gray-400 mt-1">Format: +254712345678</p>
+                                                    </div>
+                                                    <div>
+                                                        <Label>Address Line 1</Label>
+                                                        <Input
+                                                            value={nok.addressAddressLine1}
+                                                            onChange={(e) => updateNextOfKin(index, "addressAddressLine1", e.target.value)}
+                                                            placeholder="P.O. BOX 12345"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <Label>Percentage *</Label>
                                                         <Input
                                                             type="number"
                                                             min={0}
                                                             max={100}
                                                             value={nok.nominatedPercentage}
                                                             onChange={(e) => {
-                                                                const newValue = Number(e.target.value);
-
-                                                                // total without current row
-                                                                const otherTotal = nextOfKins.reduce(
-                                                                    (sum, k, i) =>
-                                                                        i === index ? sum : sum + Number(k.nominatedPercentage || 0),
+                                                                const newValue    = Number(e.target.value);
+                                                                const otherTotal  = nextOfKins.reduce(
+                                                                    (sum, k, i) => i === index ? sum : sum + Number(k.nominatedPercentage || 0),
                                                                     0
                                                                 );
-
                                                                 if (otherTotal + newValue > 100) {
                                                                     Swal.fire({
-                                                                        icon: "warning",
+                                                                        icon:  "warning",
                                                                         title: "Invalid Percentage",
-                                                                        text: `Total percentage cannot exceed 100%. Remaining: ${100 - otherTotal}%`,
+                                                                        text:  `Total cannot exceed 100%. Remaining: ${100 - otherTotal}%`,
                                                                     });
                                                                     return;
                                                                 }
-
                                                                 updateNextOfKin(index, "nominatedPercentage", newValue);
                                                             }}
                                                         />
-
                                                     </div>
                                                 </div>
                                             </div>
                                         ))}
 
-                                        <Button variant="outline" className="bg-indigo-600 text-white" onClick={addNextOfKin}>
+                                        <Button
+                                            variant="outline"
+                                            className="bg-indigo-600 text-white"
+                                            onClick={addNextOfKin}
+                                        >
                                             + Add Next of Kin
                                         </Button>
                                     </section>
                                 )}
 
-                                {/* STEP 3 – UPLOADS */}
-                                {step === 3 && (
+                                {/* ── STEP 3: UPLOADS ── */}
+                                {step === 4 && (
                                     <section>
                                         <h3 className="text-lg font-semibold mb-3">Uploads</h3>
-
                                         <div className="grid grid-cols-2 gap-4">
                                             <div>
                                                 <Label>ID Front Image</Label>
@@ -1210,7 +1367,6 @@ export default function MemberRegistrationDrawer({ open, onClose, refresh }) {
                                                     <p className="text-green-600 text-sm mt-1">Uploaded ✓</p>
                                                 )}
                                             </div>
-
                                             <div>
                                                 <Label>ID Back Image</Label>
                                                 <Input
@@ -1222,21 +1378,17 @@ export default function MemberRegistrationDrawer({ open, onClose, refresh }) {
                                                     <p className="text-green-600 text-sm mt-1">Uploaded ✓</p>
                                                 )}
                                             </div>
-
-                                            {/* PASSPORT IMAGE */}
                                             <div>
-                                                <Label>Passport Image</Label>
-                                                <Input
-                                                    type="file"
-                                                    accept="image/*"
-                                                    onChange={(e) => handleImageUpload(e, "passportImageId")}
-                                                />
-                                                {customer.passportImageId && (
-                                                    <p className="text-green-600 text-sm mt-1">Uploaded ✓</p>
-                                                )}
+                                              <Label>Passport Photo</Label>
+<Input
+    type="file"
+    accept="image/*"
+    onChange={(e) => handleImageUpload(e, "passportPhotoBase64")}
+/>
+{customer.passportPhotoBase64 && (
+    <p className="text-green-600 text-sm mt-1">Uploaded ✓</p>
+)}
                                             </div>
-
-                                            {/* SIGNATURE IMAGE */}
                                             <div>
                                                 <Label>Signature Image</Label>
                                                 <Input
@@ -1248,8 +1400,6 @@ export default function MemberRegistrationDrawer({ open, onClose, refresh }) {
                                                     <p className="text-green-600 text-sm mt-1">Uploaded ✓</p>
                                                 )}
                                             </div>
-
-                                            {/* REMARKS */}
                                             <div className="col-span-2">
                                                 <Label>Remarks</Label>
                                                 <Input
@@ -1258,7 +1408,6 @@ export default function MemberRegistrationDrawer({ open, onClose, refresh }) {
                                                     placeholder="Additional notes..."
                                                 />
                                             </div>
-
                                         </div>
                                     </section>
                                 )}
@@ -1269,13 +1418,14 @@ export default function MemberRegistrationDrawer({ open, onClose, refresh }) {
                                         <Button variant="outline" onClick={back} disabled={loading}>
                                             Back
                                         </Button>
+                                    ) : (
+                                        <span />
+                                    )}
 
-                                    ) : <span></span>}
-
-                                    {step < 3 ? (
+                                    {step < 4 ? (
                                         <Button
                                             onClick={() => {
-                                                if (step === 2 && totalNokPercentage > 100) {
+                                                if (step === 3 && totalNokPercentage > 100) {
                                                     Swal.fire(
                                                         "Invalid Allocation",
                                                         `Next of Kin percentages cannot exceed 100%. Current: ${totalNokPercentage}%`,
@@ -1290,14 +1440,15 @@ export default function MemberRegistrationDrawer({ open, onClose, refresh }) {
                                             Next
                                         </Button>
                                     ) : (
-                                        <Button onClick={handleSubmit} disabled={loading || idExists}>
+                                        <Button
+                                            onClick={handleSubmit}
+                                            disabled={loading || idExists}
+                                        >
                                             {loading ? "Submitting..." : "Submit"}
                                         </Button>
-
                                     )}
                                 </div>
                             </main>
-
                         </div>
                     </motion.div>
                 </>

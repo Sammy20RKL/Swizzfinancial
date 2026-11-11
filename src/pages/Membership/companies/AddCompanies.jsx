@@ -91,7 +91,7 @@ export default function AddCompanies({ open, onClose, refresh }) {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json",
-                        "ngrok-skip-browser-warning": "true"
+
                     },
                     body: JSON.stringify(form),
                 }

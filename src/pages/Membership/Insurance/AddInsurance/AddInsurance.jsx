@@ -38,7 +38,7 @@ export default function AddInsurance({ open, onClose, refresh }) {
         setLoading(true);
         try {
             const res = await fetch(
-                "http://88.99.215.90:8600/api/MemberExit/CreateInsuranceCompany",
+                "http://95.216.225.26:8006/api/MemberExit/CreateInsuranceCompany",
                 {
                     method: "POST",
                     headers: {

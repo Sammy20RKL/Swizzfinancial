@@ -20,12 +20,11 @@ export default function AddLoanSubSector({ open, onClose, onSuccess }) {
 
         try {
             const res = await fetch(
-                "http://88.99.215.90:8600/api/Loansetups",
+                `${import.meta.env.VITE_APP_LOANING_URL}/api/Loansetups`,
                 {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json",
-                        "ngrok-skip-browser-warning": "true",
                     },
                     body: JSON.stringify(formData),
                 }

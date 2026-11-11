@@ -13,9 +13,7 @@ export default function LoanSubSector() {
 
     const fetchLoanSubSectors = () => {
         setLoading(true);
-        fetch("http://88.99.215.90:8600/api/Loansetups/GetAllLoanSubSector", {
-            headers: { "ngrok-skip-browser-warning": "true" },
-        })
+        fetch(`${import.meta.env.VITE_APP_LOANING_URL}/api/Loansetups/GetAllLoanSubSector`)
             .then((res) => res.json())
             .then((data) => {
                 setSubSectors(Array.isArray(data) ? data : []);

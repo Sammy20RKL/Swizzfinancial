@@ -43,8 +43,7 @@ export default function Administrative() {
         setLoading(true);
         try {
             const res = await fetch(
-                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/administrative-divisions`,
-                { headers: { "ngrok-skip-browser-warning": "true" } }
+                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/administrative-divisions`
             );
             const json = await res.json();
             if (json.success) setDivisions(json.data);

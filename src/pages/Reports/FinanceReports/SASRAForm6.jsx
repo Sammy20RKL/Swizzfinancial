@@ -11,7 +11,7 @@ function SASRAForm6() {
 
     // useEffect(() => {
     //     fetch(
-    //         "http://88.99.215.90:8600/api/reporting/SASRAForm6?startDate=2026-01-20&endDate=2026-01-20",
+    //         "http://95.216.225.26:8006/api/reporting/SASRAForm6?startDate=2026-01-20&endDate=2026-01-20",
     //         { headers: { "ngrok-skip-browser-warning": "true" } }
     //     )
     //         .then((res) => res.json())
@@ -25,7 +25,7 @@ function SASRAForm6() {
         setData(null); // loading state
 
         fetch(
-            `http://88.99.215.90:8600/api/reporting/SASRAForm6?startDate=${startDate}&endDate=${endDate}`,
+            `https://localhost:44327/api/reporting/SASRAForm6?startDate=${startDate}&endDate=${endDate}`,
             { headers: { "ngrok-skip-browser-warning": "true" } }
         )
             .then(res => res.json())

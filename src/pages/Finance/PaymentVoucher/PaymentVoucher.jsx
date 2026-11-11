@@ -24,9 +24,7 @@ export default function PaymentVoucher() {
   const [addDrawerOpen, setAddDrawerOpen] = useState(false);
 
   const fetchPayments = () => {
-    fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/values/GetPayments`, {
-      headers: { "ngrok-skip-browser-warning": "true" },
-    })
+    fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/values/GetPayments`)
       .then((res) => res.json())
       .then((data) => {
         setPayments(data.Data || []);
@@ -58,8 +56,7 @@ export default function PaymentVoucher() {
           const res = await fetch(
             `${import.meta.env.VITE_APP_PRO_URL}/api/values/DeletePayment/${id}`,
             {
-              method: "DELETE",
-              headers: { "ngrok-skip-browser-warning": "true" },
+              method: "DELETE"
             }
           );
           if (!res.ok) throw new Error("Failed to delete payment");

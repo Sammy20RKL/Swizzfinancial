@@ -13,9 +13,7 @@ export default function BankLinkages() {
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   const fetchLinkages = () => {
-    fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/values/getBankWithLinkages`, {
-      headers: { "ngrok-skip-browser-warning": "true" },
-    })
+    fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/values/getBankWithLinkages`)
       .then((res) => res.json())
       .then((data) => {
         setLinkages(data.Data || []);

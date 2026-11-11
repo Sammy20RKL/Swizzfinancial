@@ -42,8 +42,7 @@ export default function EditZone({ open, onClose, data, refresh }) {
     const fetchDivisions = async () => {
         try {
             const res = await fetch(
-                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/divisions`,
-                { headers: { "ngrok-skip-browser-warning": "true" } }
+                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/divisions`
             );
             const json = await res.json();
             if (json.success) setDivisions(json.data);
@@ -77,8 +76,7 @@ export default function EditZone({ open, onClose, data, refresh }) {
             const response = await fetch(`${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/zones/${data.Id}`, {
                 method: "PUT",
                 headers: {
-                    "Content-Type": "application/json",
-                    "ngrok-skip-browser-warning": "true",
+                    "Content-Type": "application/json"
                 },
                 body: JSON.stringify({
                     ...form,

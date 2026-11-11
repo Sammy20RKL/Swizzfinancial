@@ -86,7 +86,7 @@ const downloadMemberStatement = async (customerId, startDate, endDate) => {
 // ===== Fetch Customers Function =====
 const fetchCustomers = async () => {
     try {
-        const response = await fetch("http://88.99.215.90:8600/api/Customers", {
+        const response = await fetch("http://95.216.225.26:8006/api/Customers", {
             headers: { "ngrok-skip-browser-warning": "true" }
         });
         const result = await response.json();

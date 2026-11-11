@@ -12,6 +12,10 @@ import {
     FaMapMarkerAlt,
     FaSearch,
     FaFilter,
+    FaUsers,
+    FaChartPie,
+    FaEye,
+    FaEdit,
 } from "react-icons/fa";
 
 import {
@@ -25,8 +29,15 @@ import Swal from "sweetalert2";
 import NotFoundImage from "/assets/scopefinding.png";
 import AddCompanies from "./AddCompanies";
 import EditCompanies from "./EditCompanies";
+import CompanyDetails from "./CompanyDetails";
+import { useAuth } from "@/context/AuthContext";
+
+const COMPANIES_API_URL = `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/companies`;
 
 export default function Companies() {
+    // Get auth context
+    const { token, logout, isAuthenticated, companyId, userData } = useAuth();
+    
     const [companies, setCompanies] = useState([]);
     const [filteredCompanies, setFilteredCompanies] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -34,7 +45,11 @@ export default function Companies() {
     const [openDrawer, setOpenDrawer] = useState(false);
     const [openEdit, setOpenEdit] = useState(false);
     const [selectedCompany, setSelectedCompany] = useState(null);
-    
+
+    // Company Details Drawer
+    const [companyDetailsOpen, setCompanyDetailsOpen] = useState(false);
+    const [selectedCompanyId, setSelectedCompanyId] = useState(null);
+
     // Filter states
     const [searchQuery, setSearchQuery] = useState("");
     const [statusFilter, setStatusFilter] = useState("all");
@@ -42,25 +57,101 @@ export default function Companies() {
     const [sortOrder, setSortOrder] = useState("asc");
     const [showFilters, setShowFilters] = useState(false);
 
+    // Helper function to get auth headers
+    const getAuthHeaders = () => {
+        return {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        };
+    };
+
+    // Helper function to get company ID
+    const getCompanyId = () => {
+        let currentCompanyId = companyId;
+        if (!currentCompanyId) {
+            // Try to get from userData in auth context
+            if (userData?.CompanyId) {
+                currentCompanyId = userData.CompanyId;
+            } else {
+                // Fallback: try to get from localStorage
+                try {
+                    const storedUser = localStorage.getItem('userData');
+                    if (storedUser) {
+                        const parsedUser = JSON.parse(storedUser);
+                        currentCompanyId = parsedUser.CompanyId;
+                    }
+                } catch (e) {
+                    console.error("Error parsing stored user data:", e);
+                }
+            }
+        }
+        return currentCompanyId;
+    };
+
     useEffect(() => {
-        fetchCompanies();
-    }, []);
+        if (isAuthenticated && token) {
+            fetchCompanies();
+        }
+    }, [isAuthenticated, token]);
 
     useEffect(() => {
         applyFilters();
     }, [companies, searchQuery, statusFilter, sortBy, sortOrder]);
 
     const fetchCompanies = async () => {
+        setLoading(true);
         try {
-            const res = await fetch(
-                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/companies`, {
-                headers: { "ngrok-skip-browser-warning": "true" },
+            if (!token) {
+                console.error("No token available");
+                Swal.fire("Authentication Error", "Please login again.", "error");
+                setLoading(false);
+                return;
             }
-            );
-            const json = await res.json();
+
+            const currentCompanyId = getCompanyId();
+            if (!currentCompanyId) {
+                console.error("No Company ID available");
+                Swal.fire("Error", "Company information not found. Please login again.", "error");
+                setLoading(false);
+                return;
+            }
+
+            console.log("Token being used:", token.substring(0, 20) + "...");
+            console.log("Company ID being used:", currentCompanyId);
+
+            // Build URL with query parameters
+            const url = new URL(COMPANIES_API_URL);
+            url.searchParams.append('testCompanyId', currentCompanyId);
+
+            console.log("Fetching companies from:", url.toString());
+
+            const response = await fetch(url.toString(), {
+                method: 'GET',
+                headers: getAuthHeaders()
+            });
+
+            console.log("Response status:", response.status);
+
+            if (response.status === 401 || response.status === 403) {
+                Swal.fire("Session Expired", "Your session has expired. Please login again.", "error")
+                    .then(() => {
+                        logout();
+                    });
+                setLoading(false);
+                return;
+            }
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const json = await response.json();
+            console.log("Companies Response:", json);
+            
             setCompanies(json.data || []);
         } catch (err) {
             console.error("Fetch Companies Error:", err);
+            Swal.fire("Error", "Failed to fetch companies: " + err.message, "error");
         } finally {
             setLoading(false);
         }
@@ -81,10 +172,9 @@ export default function Companies() {
             );
         }
 
-        // Status filter (if you have a status field, adjust as needed)
+        // Status filter
         if (statusFilter !== "all") {
             filtered = filtered.filter(company => {
-                // Adjust this based on your actual data structure
                 if (statusFilter === "2fa_enabled") {
                     return company.EnforceTwoFactorAuthentication === true;
                 }
@@ -164,21 +254,48 @@ export default function Companies() {
         }).then(async (result) => {
             if (result.isConfirmed) {
                 try {
-                    const res = await fetch(`${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/companies/${id}`, {
+                    if (!token) {
+                        Swal.fire("Error", "Please login again.", "error");
+                        return;
+                    }
+
+                    const currentCompanyId = getCompanyId();
+                    const url = new URL(`${COMPANIES_API_URL}/${id}`);
+                    if (currentCompanyId) {
+                        url.searchParams.append('testCompanyId', currentCompanyId);
+                    }
+
+                    const response = await fetch(url.toString(), {
                         method: "DELETE",
+                        headers: getAuthHeaders()
                     });
 
-                    if (!res.ok) {
+                    if (response.status === 401 || response.status === 403) {
+                        Swal.fire("Session Expired", "Please login again.", "error")
+                            .then(() => {
+                                logout();
+                            });
+                        return;
+                    }
+
+                    if (!response.ok) {
                         throw new Error("Failed to delete company");
                     }
 
                     setCompanies((prev) => prev.filter((c) => c.Id !== id));
                     Swal.fire("Deleted!", "Company removed successfully.", "success");
                 } catch (error) {
+                    console.error("Delete Company Error:", error);
                     Swal.fire("Error", error.message, "error");
                 }
             }
         });
+    };
+
+    // ── View Company Statistics ──
+    const handleViewStatistics = (companyId) => {
+        setSelectedCompanyId(companyId);
+        setCompanyDetailsOpen(true);
     };
 
     return (
@@ -364,14 +481,21 @@ export default function Companies() {
                                                     <FaEllipsisV className="h-4 w-4 text-gray-600" />
                                                 </Button>
                                             </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end" className="w-32">
+                                            <DropdownMenuContent align="end" className="w-40">
                                                 <DropdownMenuItem
                                                     onClick={() => {
                                                         setSelectedCompany(company);
                                                         setOpenEdit(true);
                                                     }}
                                                 >
-                                                    Edit
+                                                    <FaEdit className="mr-2" /> Edit
+                                                </DropdownMenuItem>
+
+                                                <DropdownMenuItem
+                                                    onClick={() => handleViewStatistics(company.Id)}
+                                                    className="text-indigo-600"
+                                                >
+                                                    <FaChartPie className="mr-2" /> View Statistics
                                                 </DropdownMenuItem>
 
                                                 <DropdownMenuItem
@@ -419,6 +543,41 @@ export default function Companies() {
                                                 </div>
                                             </div>
                                         </div>
+
+                                        {/* Quick Stats Preview */}
+                                        <div className="bg-white p-4 rounded-lg shadow border">
+                                            <div className="bg-gray-200 rounded-xl p-3">
+                                                <div className="flex justify-between items-center mb-2">
+                                                    <h3 className="font-bold text-white bg-indigo-700 p-3 rounded-xl flex items-center gap-2">
+                                                        <FaUsers /> Member Statistics
+                                                    </h3>
+                                                    <Button
+                                                        size="sm"
+                                                        className="bg-indigo-600 hover:bg-indigo-700 text-white"
+                                                        onClick={() => handleViewStatistics(company.Id)}
+                                                    >
+                                                        <FaEye className="mr-1" /> View Full Stats
+                                                    </Button>
+                                                </div>
+                                                <div className="grid grid-cols-3 gap-3 p-3 bg-gray-50 rounded-xl border-2 text-center">
+                                                    <div>
+                                                        <p className="text-2xl font-bold text-indigo-600">-</p>
+                                                        <p className="text-xs text-gray-500">Total Members</p>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-2xl font-bold text-blue-500">-</p>
+                                                        <p className="text-xs text-gray-500">Male</p>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-2xl font-bold text-pink-500">-</p>
+                                                        <p className="text-xs text-gray-500">Female</p>
+                                                    </div>
+                                                </div>
+                                                <p className="text-xs text-gray-400 text-center mt-2">
+                                                    Click "View Full Stats" for detailed statistics
+                                                </p>
+                                            </div>
+                                        </div>
                                     </div>
                                 )}
                             </div>
@@ -428,8 +587,8 @@ export default function Companies() {
                     <div className="text-gray-500 text-center mt-4">
                         <img src={NotFoundImage} alt="Not Found" className="mx-auto w-42" />
                         <p className="font-medium text-gray-400">
-                            {searchQuery || statusFilter !== "all" 
-                                ? "No companies match your search criteria." 
+                            {searchQuery || statusFilter !== "all"
+                                ? "No companies match your search criteria."
                                 : "No Companies Found."}
                         </p>
                         {(searchQuery || statusFilter !== "all") && (
@@ -444,16 +603,30 @@ export default function Companies() {
                     </div>
                 )}
             </div>
+
+            {/* Add Company Drawer */}
             <AddCompanies
                 open={openDrawer}
                 onClose={() => setOpenDrawer(false)}
                 refresh={fetchCompanies}
             />
+
+            {/* Edit Company Drawer */}
             <EditCompanies
                 open={openEdit}
                 onClose={() => setOpenEdit(false)}
                 data={selectedCompany}
                 refresh={fetchCompanies}
+            />
+
+            {/* Company Details Drawer with Statistics */}
+            <CompanyDetails
+                open={companyDetailsOpen}
+                onClose={() => {
+                    setCompanyDetailsOpen(false);
+                    setSelectedCompanyId(null);
+                }}
+                companyId={selectedCompanyId}
             />
         </div>
     );

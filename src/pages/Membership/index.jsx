@@ -32,7 +32,7 @@ export default function Membership() {
         setLoading(true);
         try {
             const res = await fetch(
-                "http://88.99.215.90:8600/api/MemberExit/GetAll",
+                "http://95.216.225.26:8006/api/MemberExit/GetAll",
                 {
                     headers: {
                         "ngrok-skip-browser-warning": "true",
@@ -68,7 +68,7 @@ export default function Membership() {
     const fetchInsurance = async () => {
         try {
             const res = await fetch(
-                "http://88.99.215.90:8600/api/MemberExit/GetAllInsuarance"
+                "http://95.216.225.26:8006/api/MemberExit/GetAllInsuarance"
             );
             const json = await res.json();
             setInsurance(json.Data || []);

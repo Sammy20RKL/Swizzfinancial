@@ -34,7 +34,7 @@ export default function Branches() {
     const [openEdit, setOpenEdit] = useState(false);
     const [selectedBranch, setSelectedBranch] = useState(null);
     const [openBranch, setOpenBranch] = useState(false);
-    
+
     // Filter states
     const [searchQuery, setSearchQuery] = useState("");
     const [companyFilter, setCompanyFilter] = useState("all");
@@ -62,8 +62,7 @@ export default function Branches() {
     const fetchBranches = async () => {
         try {
             const res = await fetch(
-                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/branches`,
-                { headers: { "ngrok-skip-browser-warning": "true" } }
+                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/branches`
             );
             const json = await res.json();
             setBranches(json.data || []);
@@ -92,7 +91,7 @@ export default function Branches() {
 
         // Company filter
         if (companyFilter !== "all") {
-            filtered = filtered.filter(branch => 
+            filtered = filtered.filter(branch =>
                 branch.CompanyDescription === companyFilter
             );
         }
@@ -170,9 +169,8 @@ export default function Branches() {
                 try {
                     const res = await fetch(
                         `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/branches/${id}`,
-                        { 
-                            method: "DELETE",
-                            headers: { "ngrok-skip-browser-warning": "true" } 
+                        {
+                            method: "DELETE"
                         }
                     );
 
@@ -198,8 +196,8 @@ export default function Branches() {
                         ({filteredBranches.length} {filteredBranches.length === 1 ? 'branch' : 'branches'})
                     </span>
                 </h2>
-                <Button 
-                    onClick={() => setOpenBranch(true)} 
+                <Button
+                    onClick={() => setOpenBranch(true)}
                     className="bg-indigo-600 hover:bg-indigo-700 flex items-center gap-2"
                 >
                     <FaPlus /> Add Branch
@@ -433,8 +431,8 @@ export default function Branches() {
                     <div className="text-gray-500 text-center mt-4">
                         <img src={NotFoundImage} alt="Not Found" className="mx-auto w-42" />
                         <p className="font-medium text-gray-400">
-                            {searchQuery || companyFilter !== "all" 
-                                ? "No branches match your search criteria." 
+                            {searchQuery || companyFilter !== "all"
+                                ? "No branches match your search criteria."
                                 : "No Branches Found."}
                         </p>
                         {(searchQuery || companyFilter !== "all") && (

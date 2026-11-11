@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Swal from "sweetalert2";
+import * as authApi from "@/apis/auth/authApi";
 
 export default function AddRole({ open, onClose, refresh }) {
     const [loading, setLoading] = useState(false);
@@ -26,18 +27,12 @@ export default function AddRole({ open, onClose, refresh }) {
         setLoading(true);
 
         try {
-            const response = await fetch(
-                "http://88.99.215.90:8600/api/auth/CreateRole",
-                {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify(form),
-                }
-            );
+            const response = await authApi.createRole(form);
+            const data = response.data;
 
-            if (!response.ok) throw new Error("Failed to create role");
+            if (data?.success === false) {
+                throw new Error(data.message || "Failed to create role");
+            }
 
             Swal.fire("Success!", "Role created successfully", "success");
 
@@ -45,7 +40,8 @@ export default function AddRole({ open, onClose, refresh }) {
             refresh();
             onClose();
         } catch (err) {
-            Swal.fire("Error", err.message, "error");
+            const message = err.response?.data?.message || err.message;
+            Swal.fire("Error", message, "error");
         } finally {
             setLoading(false);
         }

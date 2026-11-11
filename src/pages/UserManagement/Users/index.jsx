@@ -1,6 +1,7 @@
 
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
     FaUsers,
     FaChevronDown,
@@ -8,6 +9,11 @@ import {
     FaEllipsisV,
     FaTrash,
     FaUserPlus,
+    FaEdit,
+    FaKey,
+    FaUserSlash,
+    FaUserCheck,
+    FaSearch,
 } from "react-icons/fa";
 
 import {
@@ -20,30 +26,48 @@ import {
 import Swal from "sweetalert2";
 import NotFoundImage from "/assets/scopefinding.png";
 import RegisterMember from "./RegisterMember";
+import EditUser from "./EditUser";
+import ResetPasswordModal from "./ResetPasswordModal";
+import * as authApi from "@/apis/auth/authApi";
+
+const PAGE_SIZE = 25;
 
 export default function Users() {
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [expandedUser, setExpandedUser] = useState(null);
     const [openRegister, setOpenRegister] = useState(false);
+    const [editingUser, setEditingUser] = useState(null);
+    const [resettingUser, setResettingUser] = useState(null);
+    const [search, setSearch] = useState("");
+    const [page, setPage] = useState(1);
+    const [totalCount, setTotalCount] = useState(0);
 
     useEffect(() => {
         fetchUsers();
-    }, []);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [page]);
 
     const fetchUsers = async () => {
         setLoading(true);
         try {
-            const res = await fetch(
-                "http://88.99.215.90:8600/api/auth/GetUsers"
-            );
-            const json = await res.json();
-            if (json.success) setUsers(json.data);
+            const res = await authApi.getUsers({ page, pageSize: PAGE_SIZE, search });
+            const json = res.data;
+            if (json.success) {
+                setUsers(json.data.items);
+                setTotalCount(json.data.totalCount);
+            }
         } catch (err) {
             console.error("Fetch Users Error:", err);
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleSearch = (e) => {
+        e.preventDefault();
+        setPage(1);
+        fetchUsers();
     };
 
     const handleDelete = async (id) => {
@@ -58,18 +82,44 @@ export default function Users() {
         }).then(async (result) => {
             if (result.isConfirmed) {
                 try {
-                    const res = await fetch(
-                        `http://88.99.215.90:8600/api/auth/DeleteUser/${id}`,
-                        { method: "DELETE" }
-                    );
-
-                    if (!res.ok) throw new Error("Failed to delete user");
-
+                    await authApi.deleteUser(id);
                     setUsers((prev) => prev.filter((u) => u.Id !== id));
-
                     Swal.fire("Deleted!", "User removed successfully.", "success");
                 } catch (err) {
-                    Swal.fire("Error", err.message, "error");
+                    const message = err.response?.data?.message || err.message;
+                    Swal.fire("Error", message, "error");
+                }
+            }
+        });
+    };
+
+    const handleToggleActive = async (user) => {
+        const action = user.IsActive ? "Deactivate" : "Reactivate";
+        Swal.fire({
+            title: `${action} User?`,
+            text: `${user.FirstName} ${user.LastName} will be ${user.IsActive ? "deactivated" : "reactivated"}.`,
+            icon: "warning",
+            showCancelButton: true,
+            confirmButtonColor: "#4f46e5",
+            cancelButtonColor: "#6b7280",
+            confirmButtonText: action,
+        }).then(async (result) => {
+            if (result.isConfirmed) {
+                try {
+                    if (user.IsActive) {
+                        await authApi.deactivateUser(user.Id);
+                    } else {
+                        await authApi.reactivateUser(user.Id);
+                    }
+                    setUsers((prev) =>
+                        prev.map((u) =>
+                            u.Id === user.Id ? { ...u, IsActive: !u.IsActive } : u
+                        )
+                    );
+                    Swal.fire("Done!", `User ${action.toLowerCase()}d successfully.`, "success");
+                } catch (err) {
+                    const message = err.response?.data?.message || err.message;
+                    Swal.fire("Error", message, "error");
                 }
             }
         });
@@ -91,6 +141,19 @@ export default function Users() {
                     <FaUserPlus /> Register User
                 </Button>
             </div>
+
+            {/* Search */}
+            <form onSubmit={handleSearch} className="flex items-center gap-2 mb-4">
+                <Input
+                    placeholder="Search by name, username or email..."
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    className="max-w-sm bg-white"
+                />
+                <Button type="submit" variant="outline" className="flex items-center gap-2">
+                    <FaSearch /> Search
+                </Button>
+            </form>
 
             <div className="bg-gray-200 p-4 rounded-sm">
 
@@ -178,7 +241,24 @@ export default function Users() {
                                                 </Button>
                                             </DropdownMenuTrigger>
 
-                                            <DropdownMenuContent align="end" className="w-32">
+                                            <DropdownMenuContent align="end" className="w-44">
+                                                <DropdownMenuItem onClick={() => setEditingUser(user)}>
+                                                    <FaEdit className="mr-2" /> Edit
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => setResettingUser(user)}>
+                                                    <FaKey className="mr-2" /> Reset Password
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => handleToggleActive(user)}>
+                                                    {user.IsActive ? (
+                                                        <>
+                                                            <FaUserSlash className="mr-2" /> Deactivate
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <FaUserCheck className="mr-2" /> Reactivate
+                                                        </>
+                                                    )}
+                                                </DropdownMenuItem>
                                                 <DropdownMenuItem
                                                     className="text-red-600"
                                                     onClick={() => handleDelete(user.Id)}
@@ -214,6 +294,27 @@ export default function Users() {
                         <p className="font-medium text-gray-400">No Users Found.</p>
                     </div>
                 )}
+
+                {/* Pagination */}
+                <div className="flex justify-end items-center gap-3 mt-4">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={page === 1}
+                        onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    >
+                        Previous
+                    </Button>
+                    <span className="text-sm text-gray-600">Page {page}</span>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={page * PAGE_SIZE >= totalCount}
+                        onClick={() => setPage((p) => p + 1)}
+                    >
+                        Next
+                    </Button>
+                </div>
             </div>
 
 
@@ -221,6 +322,19 @@ export default function Users() {
                 open={openRegister}
                 onClose={() => setOpenRegister(false)}
                 refresh={fetchUsers}
+            />
+
+            <EditUser
+                open={!!editingUser}
+                user={editingUser}
+                onClose={() => setEditingUser(null)}
+                refresh={fetchUsers}
+            />
+
+            <ResetPasswordModal
+                open={!!resettingUser}
+                user={resettingUser}
+                onClose={() => setResettingUser(null)}
             />
         </div>
     );

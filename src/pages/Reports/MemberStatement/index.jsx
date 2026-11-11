@@ -16,10 +16,10 @@ import MemberStatementPreviewModal from "./MemberStatementPreviewModal";
 // ===== Fetch Customers =====
 const fetchCustomers = async () => {
     try {
-        const response = await fetch("http://88.99.215.90:8600/api/Customers", {
-            headers: { "ngrok-skip-browser-warning": "true" },
-        });
+        const response = await fetch(`${import.meta.env.VITE_APP_REPORT_URL}/api/Customers`);
         const result = await response.json();
+
+        console.log("Fetch customers result:", result);
 
         if (result.success && Array.isArray(result.data)) {
             return result.data.map((c) => ({
@@ -44,7 +44,7 @@ export default function MemberStatementPage() {
     const [searchTerm, setSearchTerm] = useState("");
     const [selectedCustomer, setSelectedCustomer] = useState(null);
     const [startDate, setStartDate] = useState(new Date("2024-01-01"));
-    const [endDate, setEndDate] = useState(new Date("2024-12-31"));
+    const [endDate, setEndDate] = useState(new Date());
 
     const [previewOpen, setPreviewOpen] = useState(false);
 

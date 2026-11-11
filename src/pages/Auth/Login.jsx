@@ -1,66 +1,68 @@
-
 import React, { useState } from "react";
-import { FaGoogle, FaApple } from "react-icons/fa";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import Swal from "sweetalert2";
-
+import * as authApi from "@/apis/auth/authApi";
+import { useAuth } from "@/context/AuthContext";
 
 export default function Login() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { login } = useAuth();
   const [loading, setLoading] = useState(false);
 
   const [form, setForm] = useState({
-    Identifier: "",
-    Password: "",
+    identifier: "",
+    password: "",
   });
 
   const update = (field, value) => {
     setForm({ ...form, [field]: value });
   };
 
-
-
   const handleLogin = async (e) => {
     e.preventDefault();
 
-    if (!form.Identifier || !form.Password) {
-      Swal.fire("Missing Fields", "Please enter email and password.", "warning");
+    if (!form.identifier || !form.password) {
+      Swal.fire("Missing Fields", "Please enter your email/username and password.", "warning");
       return;
     }
 
     setLoading(true);
 
     try {
-      const response = await fetch(
-        "http://88.99.215.90:8600/api/auth/login",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            Identifier: form.Identifier,
-            Password: form.Password,
-          }),
-        }
-      );
+      const response = await authApi.login(form.identifier, form.password);
+      const data = response.data;
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || "Login failed");
+      if (data?.success === false) {
+        throw new Error(data?.message || "Login failed.");
       }
 
-      // ✅ If your API returns a token
-      if (data.token) {
-        localStorage.setItem("token", data.token);
+      const token = data?.data?.Token;
+      const userInfo = data?.data;
+
+      if (!token) {
+        throw new Error(data?.message || "Login failed: no token returned.");
       }
 
-      Swal.fire("Success!", "Login successful", "success");
+      // Store both token and user data (including CompanyId)
+      login(token, userInfo);
 
-      navigate("/Membership/Members");
+      const redirectTo = location.state?.from?.pathname || "/Membership/Members";
+      navigate(redirectTo, { replace: true });
+      
+      Swal.fire({
+        title: "Success!",
+        text: "Login successful!",
+        icon: "success",
+        timer: 1500,
+        showConfirmButton: false
+      });
     } catch (error) {
-      Swal.fire("Error", error.message, "error");
+      const message =
+        error.response?.data?.message ||
+        error.message ||
+        "Unable to log in. Please check your credentials.";
+      Swal.fire("Login Failed", message, "error");
     } finally {
       setLoading(false);
     }
@@ -70,9 +72,6 @@ export default function Login() {
     <div className="flex min-h-screen bg-gray-100">
       {/* Left Section */}
       <div className="w-1/2 bg-[#3E1FB6] text-white flex flex-col justify-center items-end relative overflow-hidden">
-        {/* Shimmer background animation */}
-        {/* <div className="absolute inset-0 bg-gradient-to-br from-[#3E1FB6] via-[#5A3FE3] to-[#3E1FB6] animate-pulse opacity-40"></div> */}
-
         <div className="relative z-10 w-full">
           {/* Logo */}
           <div className="flex items-center mb-6 ml-50">
@@ -108,13 +107,11 @@ export default function Login() {
 
               {/* Main Content */}
               <div className="flex flex-col w-full">
-
                 <div className=" flex-1 bg-[#2B1B8C] shimmer justify-items-end">
                   <div className="bg-gray-200 rounded-md h-5 w-1/2 m-3 shimmer"></div>
                 </div>
 
                 <div className="flex rounded-tl-2xl bg-white/95">
-
                   <div className="flex-1 bg-indigo-800 rounded-tl-2xl h-full w-1/3 p-4">
                     <div className=" flex flex-col space-y-3">
                       {[...Array(10)].map((_, i) => (
@@ -134,8 +131,6 @@ export default function Login() {
                     <div className="bg-indigo-800 rounded-md h-8 w-full mb-4 shimmer flex justify-end items-center">
                       <div className="h-5 w-1/3 bg-gray-300 rounded-md shimmer mr-3"></div>
                     </div>
-
-
 
                     {/* Form Section */}
                     <div className="space-y-3 mb-3">
@@ -170,9 +165,6 @@ export default function Login() {
                       <div className="h-6 w-20 bg-[#6B4EFF] rounded shimmer"></div>
                     </div>
                   </div>
-
-
-
                 </div>
               </div>
             </div>
@@ -180,11 +172,11 @@ export default function Login() {
         </div>
       </div>
 
-      {/* Right Section (Sign up form) */}
+      {/* Right Section (Login form) */}
       <div className="w-1/2 bg-white flex justify-center items-center">
         <div className="w-full max-w-md px-3">
           <h2 className="text-2xl font-semibold text-gray-900 mb-8">
-            Create your account
+            Sign in to your account
           </h2>
 
           <form className="space-y-5" onSubmit={handleLogin}>
@@ -195,8 +187,8 @@ export default function Login() {
               <input
                 type="text"
                 placeholder="Enter email or username"
-                value={form.Identifier}
-                onChange={(e) => update("Identifier", e.target.value)}
+                value={form.identifier}
+                onChange={(e) => update("identifier", e.target.value)}
                 className="w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#6B4EFF]"
               />
             </div>
@@ -208,8 +200,8 @@ export default function Login() {
               <input
                 type="password"
                 placeholder="Enter password"
-                value={form.Password}
-                onChange={(e) => update("Password", e.target.value)}
+                value={form.password}
+                onChange={(e) => update("password", e.target.value)}
                 className="w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#6B4EFF]"
               />
             </div>
@@ -217,39 +209,20 @@ export default function Login() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-[#6B4EFF] hover:bg-[#5b3cd8] text-white py-2 rounded-md font-medium"
+              className="w-full bg-[#6B4EFF] hover:bg-[#5b3cd8] text-white py-2 rounded-md font-medium transition-colors"
             >
-              {loading ? "Logging in..." : "Login"}
+              {loading ? (
+                <>
+                  <span className="inline-block animate-spin mr-2">⏳</span>
+                  Logging in...
+                </>
+              ) : (
+                "Login"
+              )}
             </button>
           </form>
-
-
-          <div className="my-6 flex items-center justify-center">
-            <div className="border-t w-full"></div>
-            <span className="px-2 text-gray-500 text-sm">or continue with</span>
-            <div className="border-t w-full"></div>
-          </div>
-
-          <div className="flex space-x-4">
-            <button className="flex items-center justify-center w-1/2 border rounded-md py-2 hover:bg-gray-50">
-              <FaGoogle className="mr-2 text-red-500" /> Google
-            </button>
-            <button className="flex items-center justify-center w-1/2 border rounded-md py-2 hover:bg-gray-50">
-              <FaApple className="mr-2 text-black" /> Apple
-            </button>
-          </div>
-
-          <p className="text-center text-gray-600 mt-6 text-sm">
-            Already have an account?{" "}
-            <a href="#" className="text-[#6B4EFF] font-medium hover:underline">
-              Sign in
-            </a>
-          </p>
         </div>
       </div>
     </div>
   );
 }
-
-/* Add this shimmer animation to your global CSS (e.g. index.css or tailwind.css):
------------------------------------------------------- */

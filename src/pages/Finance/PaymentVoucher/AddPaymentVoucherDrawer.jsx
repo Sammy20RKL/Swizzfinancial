@@ -109,8 +109,7 @@ export default function AddPaymentVoucherDrawer({ open, onClose, onSuccess }) {
         {
           method: "POST",
           headers: {
-            "Content-Type": "application/json",
-            "ngrok-skip-browser-warning": "true",
+            "Content-Type": "application/json"
           },
           body: JSON.stringify(formData),
         }
@@ -165,17 +164,14 @@ export default function AddPaymentVoucherDrawer({ open, onClose, onSuccess }) {
   useEffect(() => {
     // fetch Payment Types
     fetch(
-      `${import.meta.env.VITE_APP_FIN_URL}/api/values/GetPurchaseInvoiceEntryTypes`,
-      { headers: { "ngrok-skip-browser-warning": "true" } }
+      `${import.meta.env.VITE_APP_FIN_URL}/api/values/GetPurchaseInvoiceEntryTypes`
     )
       .then((res) => res.json())
       .then((data) => setPaymentTypes(data))
       .catch((err) => console.error("Error fetching payment types:", err));
 
     // fetch Chart of Accounts
-    fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/values/GetChartOfAccount`, {
-      headers: { "ngrok-skip-browser-warning": "true" },
-    })
+    fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/values/GetChartOfAccount`)
       .then((res) => res.json())
       .then((data) => {
         const accounts = Array.isArray(data) ? data : data.Data || [];
@@ -184,9 +180,7 @@ export default function AddPaymentVoucherDrawer({ open, onClose, onSuccess }) {
       .catch(() => setChartOfAccounts([]));
 
     // fetch Invoice Lines
-    fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/values/invoicelines`, {
-      headers: { "ngrok-skip-browser-warning": "true" },
-    })
+    fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/values/invoicelines`)
       .then((res) => res.json())
       .then((data) => {
         if (data.Success && Array.isArray(data.Data)) {

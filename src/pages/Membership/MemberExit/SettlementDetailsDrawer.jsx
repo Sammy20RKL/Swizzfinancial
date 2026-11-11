@@ -16,7 +16,7 @@ export default function SettlementDetailsDrawer({ open, onClose, exitId }) {
     const fetchSettlement = async (id) => {
         setLoading(true);
         try {
-            const res = await fetch(`http://88.99.215.90:8600/api/MemberExit/GetAllSettlementsById?Id=${id}`);
+            const res = await fetch(`${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/MemberExit/GetAllSettlementsById?Id=${id}`);
             const json = await res.json();
 
             if (json.Success && json.Data.length > 0) {

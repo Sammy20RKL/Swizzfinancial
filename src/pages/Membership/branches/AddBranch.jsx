@@ -33,8 +33,7 @@ export default function AddBranch({ open, onClose, refresh }) {
         const fetchCompanies = async () => {
             try {
                 const res = await fetch(
-                    `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/companies`,
-                    { headers: { "ngrok-skip-browser-warning": "true" } }
+                    `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/companies`
                 );
                 const data = await res.json();
                 if (data.success) {

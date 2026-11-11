@@ -10,7 +10,7 @@ import AddInterAccountBatchDrawer from "./AddInterAccountTransfer";
 import NotFoundImage from "/assets/scopefinding.png";
 import InterAccountBatchEntriesDrawer from "./InterAccountBatchEntriesDrawer";
 
-const API_BASE = "http://88.99.215.90:8600/api/values";
+const API_BASE = `${import.meta.env.VITE_APP_FIN_URL}/api/values`;
 
 export default function InterAccountTransferBatchIndex() {
     const [batches, setBatches] = useState([]);
@@ -56,7 +56,7 @@ export default function InterAccountTransferBatchIndex() {
             });
 
             const res = await fetch(
-                `http://88.99.215.90:8600/api/values/PostinterAccount?batchId=${batchId}`,
+                `${import.meta.env.VITE_APP_FIN_URL}/api/values/PostinterAccount?batchId=${batchId}`,
                 {
                     method: "POST",
                 }

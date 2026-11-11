@@ -31,8 +31,7 @@ export default function AddZone({ open, onClose, refresh }) {
     const fetchDivisions = async () => {
         try {
             const res = await fetch(
-                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/divisions`,
-                { headers: { "ngrok-skip-browser-warning": "true" } }
+                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/divisions`
             );
             const json = await res.json();
             if (json.success) setDivisions(json.data);
@@ -67,7 +66,6 @@ export default function AddZone({ open, onClose, refresh }) {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    "ngrok-skip-browser-warning": "true",
                 },
                 body: JSON.stringify({
                     ...form,
@@ -101,6 +99,7 @@ export default function AddZone({ open, onClose, refresh }) {
                         exit={{ opacity: 0 }}
                         onClick={onClose}
                     />
+
 
                     {/* Drawer */}
                     <motion.div

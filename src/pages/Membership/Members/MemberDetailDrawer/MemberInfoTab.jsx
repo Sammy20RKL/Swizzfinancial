@@ -1,7 +1,7 @@
 import React from "react";
 import jsPDF from "jspdf";
 
-export default function MemberInfoTab({ customer }) {
+export default function MemberInfoTab({ customer, age }) {
 
     const handlePrintPDF = () => {
         const doc = new jsPDF("p", "mm", "a4");
@@ -74,29 +74,37 @@ export default function MemberInfoTab({ customer }) {
 
         /* ================= SECTIONS ================= */
         drawSection("Personal Details", [
+            { label: "Member No", value: customer.Reference2 },
             { label: "Full Name", value: `${customer.IndividualFirstName} ${customer.IndividualLastName}` },
+            { label: "Salutation", value: customer.IndividualSalutationDescription },
             { label: "Gender", value: customer.IndividualGenderDescription },
+            { label: "Marital Status", value: customer.IndividualMaritalStatusDescription },
+            { label: "Nationality", value: customer.IndividualNationalityDescription },
             { label: "Birth Date", value: customer.IndividualBirthDate && new Date(customer.IndividualBirthDate).toLocaleDateString() },
-            { label: "Age", value: customer.Age },
+            { label: "Age", value: age },
+            { label: "Registration Date", value: customer.RegistrationDate && new Date(customer.RegistrationDate).toLocaleDateString() },
         ]);
 
         drawSection("Identification", [
+            { label: "ID Type", value: customer.IndividualIdentityCardTypeDescription },
             { label: "ID Number", value: customer.IndividualIdentityCardNumber },
-            { label: "Card Type", value: customer.IndividualIdentityCardTypeDescription },
-            { label: "Record Status", value: customer.RecordStatusDescription },
+            { label: "Payroll No.", value: customer.IndividualPayrollNumbers },
+            { label: "PIN", value: customer.PersonalIdentificationNumber },
+            { label: "File Number", value: customer.Reference3 },
         ]);
 
-        drawSection("Employment Information", [
+        drawSection("Employment & Bank", [
             { label: "Designation", value: customer.IndividualEmploymentDesignation },
             { label: "Terms of Service", value: customer.IndividualEmploymentTermsOfServiceDescription },
-            { label: "Payroll No.", value: customer.IndividualPayrollNumbers },
+            { label: "Bank", value: customer.BankName },
+            { label: "Branch", value: customer.BranchName },
         ]);
 
         drawSection("Contact & Address", [
-            { label: "City", value: customer.AddressCity },
-            { label: "Street", value: customer.AddressStreet },
-            { label: "Email", value: customer.AddressEmail },
             { label: "Mobile", value: customer.AddressMobileLine },
+            { label: "Email", value: customer.AddressEmail },
+            { label: "City", value: customer.AddressCity },
+            { label: "Address", value: customer.AddressAddressLine1 },
         ]);
 
         /* ================= FOOTER ================= */
@@ -115,7 +123,6 @@ export default function MemberInfoTab({ customer }) {
 
         doc.save(`Member_Profile_${customer.IndividualIdentityCardNumber}.pdf`);
     };
-
 
     if (!customer) return null;
 
@@ -149,28 +156,37 @@ export default function MemberInfoTab({ customer }) {
             </div>
 
             <Section title="Personal Details">
-
                 <Field label="Member No" value={customer.Reference2} />
                 <Field label="Full Name" value={`${customer.IndividualFirstName} ${customer.IndividualLastName}`} />
-                {/* <Field label="Gender" value={customer.IndividualGenderDescription} /> */}
+                <Field label="Salutation" value={customer.IndividualSalutationDescription} />
+                <Field label="Gender" value={customer.IndividualGenderDescription} />
+                <Field label="Marital Status" value={customer.IndividualMaritalStatusDescription} />
+                <Field label="Nationality" value={customer.IndividualNationalityDescription} />
                 <Field label="Birth Date" value={customer.IndividualBirthDate && new Date(customer.IndividualBirthDate).toLocaleDateString()} />
-                <Field label="Age" value={customer.Age} />
-
+                <Field label="Age" value={age} />
+                <Field label="Registration Date" value={customer.RegistrationDate && new Date(customer.RegistrationDate).toLocaleDateString()} />
             </Section>
 
             <Section title="Identification">
+                <Field label="ID Type" value={customer.IndividualIdentityCardTypeDescription} />
                 <Field label="ID Number" value={customer.IndividualIdentityCardNumber} />
-                {/* <Field label="Card Type" value={customer.IndividualIdentityCardTypeDescription} /> */}
-                <Field label="Type of Account" value={customer.TypeDescription} />
-                <Field label="Personal Identification Number" value={customer.PersonalIdentificationNumber} />
+                <Field label="Payroll No." value={customer.IndividualPayrollNumbers} />
+                <Field label="PIN" value={customer.PersonalIdentificationNumber} />
                 <Field label="File Number" value={customer.Reference3} />
-                <Field label="Account No" value={customer.Reference1} />
+            </Section>
 
+            <Section title="Employment & Bank">
+                <Field label="Designation" value={customer.IndividualEmploymentDesignation} />
+                <Field label="Terms of Service" value={customer.IndividualEmploymentTermsOfServiceDescription} />
+                <Field label="Bank" value={customer.BankName} />
+                <Field label="Branch" value={customer.BranchName} />
             </Section>
 
             <Section title="Contact & Address">
-                <Field label="Email" value={customer.AddressEmail} />
                 <Field label="Mobile" value={customer.AddressMobileLine} />
+                <Field label="Email" value={customer.AddressEmail} />
+                <Field label="City" value={customer.AddressCity} />
+                <Field label="Address" value={customer.AddressAddressLine1} />
             </Section>
         </>
     );

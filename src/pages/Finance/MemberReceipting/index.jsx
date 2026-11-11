@@ -13,8 +13,8 @@ export default function MemberReceipting() {
 
 
     const users = [
-        { id: 1, name: "Posted Receipt", subtitle: "Receipt" },
-        { id: 2, name: "Receipting", subtitle: "Receipt" },
+        { id: 1, name: "Receipting", subtitle: "Receipt" },
+        { id: 2, name: "Posted Receipt", subtitle: "Receipt" },
     ];
 
     const user = users.find((u) => u.id === selectedUserId) || users[0];

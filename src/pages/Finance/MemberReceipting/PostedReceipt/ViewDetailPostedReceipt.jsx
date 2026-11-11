@@ -20,8 +20,7 @@ function ViewDetailPostedReceipt({ open, onClose, receiptId }) {
             setLoading(true);
             try {
                 const res = await fetch(
-                    `http://88.99.215.90:8600/api/customer-receipts/${receiptId}/with-details`,
-                    { headers: { "ngrok-skip-browser-warning": "true" } }
+                    `${import.meta.env.VITE_APP_FIN_URL}/api/customer-receipts/${receiptId}/with-details`,
                 );
                 const json = await res.json();
                 setData(json.data);

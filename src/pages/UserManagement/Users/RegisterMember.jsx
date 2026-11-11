@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
 import Swal from "sweetalert2";
+import * as authApi from "@/apis/auth/authApi";
 
 export default function RegisterMember({ open, onClose, refresh }) {
   const [loading, setLoading] = useState(false);
@@ -38,10 +39,8 @@ export default function RegisterMember({ open, onClose, refresh }) {
   const fetchRoles = async () => {
     setRolesLoading(true);
     try {
-      const response = await fetch(
-        "http://88.99.215.90:8600/api/auth/roles"
-      );
-      const data = await response.json();
+      const response = await authApi.getRoles();
+      const data = response.data;
 
       if (data.success) {
         setRoles(data.data);
@@ -76,29 +75,20 @@ export default function RegisterMember({ open, onClose, refresh }) {
     setLoading(true);
 
     try {
-      const response = await fetch(
-        "https://localhost:44327/api/auth/register",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            FirstName: form.FirstName,
-            LastName: form.LastName,
-            Username: form.Username,
-            Email: form.Email,
-            PhoneNumber: form.PhoneNumber,
-            Password: form.Password,
-            Role: form.Role,
-            Department: form.Department,
-          }),
-        }
-      );
+      const response = await authApi.register({
+        firstName: form.FirstName,
+        lastName: form.LastName,
+        username: form.Username,
+        email: form.Email,
+        phoneNumber: form.PhoneNumber,
+        password: form.Password,
+        role: form.Role,
+        department: form.Department,
+      });
 
-      const data = await response.json();
+      const data = response.data;
 
-      if (!response.ok) {
+      if (data?.success === false) {
         throw new Error(data.message || "Registration failed");
       }
 
@@ -119,7 +109,8 @@ export default function RegisterMember({ open, onClose, refresh }) {
       if (refresh) refresh();
       onClose();
     } catch (err) {
-      Swal.fire("Error", err.message, "error");
+      const message = err.response?.data?.message || err.message;
+      Swal.fire("Error", message, "error");
     } finally {
       setLoading(false);
     }

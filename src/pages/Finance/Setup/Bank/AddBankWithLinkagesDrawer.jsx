@@ -12,10 +12,10 @@ export default function AddBankWithLinkagesDrawer({ open, onClose, onSuccess }) 
   const [formData, setFormData] = useState({
     Description: "",
     BankName: "",
-    Address:"",
-    City:"",
-    SwiftCode:"",
-    IbanNo:"",
+    Address: "",
+    City: "",
+    SwiftCode: "",
+    IbanNo: "",
     Branches: [
       {
         Description: "",
@@ -50,8 +50,7 @@ export default function AddBankWithLinkagesDrawer({ open, onClose, onSuccess }) 
     const fetchChartOfAccounts = async () => {
       try {
         const res = await fetch(
-          `${import.meta.env.VITE_APP_FIN_URL}/api/values/GetChartOfAccount`,
-          { headers: { "ngrok-skip-browser-warning": "true" } }
+          `${import.meta.env.VITE_APP_FIN_URL}/api/values/GetChartOfAccount`
         );
         const data = await res.json();
 
@@ -68,8 +67,7 @@ export default function AddBankWithLinkagesDrawer({ open, onClose, onSuccess }) 
     const fetchBranches = async () => {
       try {
         const res = await fetch(
-          `${import.meta.env.VITE_APP_FIN_URL}/api/values/branches`,
-          { headers: { "ngrok-skip-browser-warning": "true" } }
+          `${import.meta.env.VITE_APP_FIN_URL}/api/values/branches`
         );
         const data = await res.json();
         console.log(data);
@@ -123,10 +121,10 @@ export default function AddBankWithLinkagesDrawer({ open, onClose, onSuccess }) 
       CreatedDate: createdDate,
       BankName: formData.BankName,
       Description: formData.BankName,
-      Address:formData.Address,
-      City:formData.City,
-      SwiftCode:formData.SwiftCode,
-      IbanNo:formData.IbanNo,
+      Address: formData.Address,
+      City: formData.City,
+      SwiftCode: formData.SwiftCode,
+      IbanNo: formData.IbanNo,
       BankBranchesDTO: formData.Branches.map((b, idx) => ({
         ...b,
         Code: 0, // auto-generated on server
@@ -150,7 +148,7 @@ export default function AddBankWithLinkagesDrawer({ open, onClose, onSuccess }) 
         `${import.meta.env.VITE_APP_FIN_URL}/api/values/AddBankWithLinkages`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json", "ngrok-skip-browser-warning": "true" },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         }
       );
@@ -167,10 +165,10 @@ export default function AddBankWithLinkagesDrawer({ open, onClose, onSuccess }) 
       setFormData({
         Description: "",
         BankName: "",
-        Address:"",
-        City:"",
-        SwiftCode:"",
-        IbanNo:"",
+        Address: "",
+        City: "",
+        SwiftCode: "",
+        IbanNo: "",
         Branches: [
           {
             Description: "",
@@ -211,7 +209,7 @@ export default function AddBankWithLinkagesDrawer({ open, onClose, onSuccess }) 
     }
   };
 
-  
+
   return (
     <AnimatePresence>
       {open && (
@@ -254,7 +252,7 @@ export default function AddBankWithLinkagesDrawer({ open, onClose, onSuccess }) 
                       }
                       required
                     />
-                    
+
                     <Input
                       placeholder="Address"
                       value={formData.Address}
@@ -417,7 +415,7 @@ export default function AddBankWithLinkagesDrawer({ open, onClose, onSuccess }) 
                         <SelectTrigger>
                           <SelectValue placeholder="Select Branch" />
                         </SelectTrigger>
-                        <SelectContent className="max-h-100 overflow-y-auto"> 
+                        <SelectContent className="max-h-100 overflow-y-auto">
                           {branches.map((b) => (
                             <SelectItem key={b.Id} value={b.Id}>
                               {b.Description}
@@ -439,7 +437,7 @@ export default function AddBankWithLinkagesDrawer({ open, onClose, onSuccess }) 
                         <SelectTrigger>
                           <SelectValue placeholder="Select Account" />
                         </SelectTrigger>
-                        <SelectContent className="max-h-100 overflow-y-auto"> 
+                        <SelectContent className="max-h-100 overflow-y-auto">
                           {chartOfAccounts.map((account) => (
                             <SelectItem key={account.Id} value={account.Id}>
                               {account.AccountName}

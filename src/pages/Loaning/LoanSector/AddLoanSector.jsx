@@ -19,7 +19,7 @@ export default function AddLoanSector({ open, onClose, onSuccess }) {
 
         try {
             const res = await fetch(
-                "http://88.99.215.90:8600/api/Loansetups/LoanSector",
+                `${import.meta.env.VITE_APP_LOANING_URL}/api/Loansetups/LoanSector`,
                 {
                     method: "POST",
                     headers: {

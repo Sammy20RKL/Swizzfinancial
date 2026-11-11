@@ -63,7 +63,6 @@ export default function AccountConfiguration() {
             `${import.meta.env.VITE_APP_FIN_URL}/api/values/${id}`,
             {
               method: "DELETE",
-              headers: { "ngrok-skip-browser-warning": "true" },
             }
           );
           if (!res.ok) throw new Error("Failed to delete mapping");
@@ -86,10 +85,10 @@ export default function AccountConfiguration() {
           <FaMoneyCheck className="text-white" /> Account Configuration
         </h2>
         <Button
-        onClick={() => setOpenDrawer(true)}
-        className="bg-indigo-600 hover:bg-indigo-700 flex items-center gap-2"
+          onClick={() => setOpenDrawer(true)}
+          className="bg-indigo-600 hover:bg-indigo-700 flex items-center gap-2"
         >
-        <FaPlus /> Add Account
+          <FaPlus /> Add Account
         </Button>
       </div>
 
@@ -141,12 +140,12 @@ export default function AccountConfiguration() {
 
                   <div className="col-span-2 flex justify-end">
                     <Button
-                    className="bg-indigo-700 hover:bg-indigo-600" 
-                    onClick={() => {
-                            setSelectedAccount(acc);
-                            setEditDrawerOpen(true);
-                          }}>
-                      <MdEditDocument className="mr-1 text-white" />    
+                      className="bg-indigo-700 hover:bg-indigo-600"
+                      onClick={() => {
+                        setSelectedAccount(acc);
+                        setEditDrawerOpen(true);
+                      }}>
+                      <MdEditDocument className="mr-1 text-white" />
                       Edit
                     </Button>
                   </div>
@@ -226,7 +225,7 @@ export default function AccountConfiguration() {
         open={openDrawer}
         onClose={() => setOpenDrawer(false)}
         onSuccess={fetchAccounts}
-        />
+      />
     </div>
   );
 }

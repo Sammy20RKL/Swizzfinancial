@@ -15,7 +15,7 @@ export default function SelectChartOfAccountModal({ open, onClose, onSelect }) {
             setLoading(true);
             try {
                 const res = await fetch(
-                    "http://88.99.215.90:8600/api/chartofaccounts"
+                    "http://95.216.225.26:8006/api/chartofaccounts"
                 );
                 const json = await res.json();
 

@@ -18,7 +18,7 @@
 //             setLoading(true);
 //             try {
 //                 const res = await fetch(
-//                     `http://88.99.215.90:8600/api/GuarantorManagement/GetLoanGuarantors/${loanCaseId}`,
+//                     `http://95.216.225.26:8006/api/GuarantorManagement/GetLoanGuarantors/${loanCaseId}`,
 //                     {
 //                         headers: {
 //                             "ngrok-skip-browser-warning": "true",
@@ -200,8 +200,7 @@ export default function LoanGuarantorsDrawer({ open, onClose, loanCaseId }) {
             setLoading(true);
             try {
                 const res = await fetch(
-                    `http://88.99.215.90:8600/api/GuarantorManagement/GetLoanGuarantors/${loanCaseId}`,
-                    { headers: { "ngrok-skip-browser-warning": "true" } }
+                    `${import.meta.env.VITE_APP_LOANING_URL}/api/GuarantorManagement/GetLoanGuarantors/${loanCaseId}`
                 );
                 const data = await res.json();
                 setGuarantors(data?.Data || []);

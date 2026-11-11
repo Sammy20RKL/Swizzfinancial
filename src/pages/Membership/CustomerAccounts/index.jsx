@@ -35,9 +35,7 @@ export default function CustomerAccounts() {
     const fetchData = async () => {
         try {
             const res = await fetch(
-                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/customeraccounts/all`, {
-                headers: { "ngrok-skip-browser-warning": "true" },
-            }
+                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/customeraccounts/all`
             );
             const json = await res.json();
 

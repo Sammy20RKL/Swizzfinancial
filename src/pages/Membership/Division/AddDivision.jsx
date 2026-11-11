@@ -29,8 +29,7 @@ export default function AddDivision({ open, onClose, refresh }) {
     const fetchEmployers = async () => {
         try {
             const res = await fetch(
-                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/employers`,
-                { headers: { "ngrok-skip-browser-warning": "true" } }
+                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/employers`
             );
             const json = await res.json();
             if (json.success) setEmployers(json.data);
@@ -50,7 +49,7 @@ export default function AddDivision({ open, onClose, refresh }) {
         try {
             const response = await fetch(`${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/divisions`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json", "ngrok-skip-browser-warning": "true" },
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     ...form,
                     createdDate: new Date(form.createdDate).toISOString(),

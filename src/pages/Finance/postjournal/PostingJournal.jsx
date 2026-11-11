@@ -1,4 +1,3 @@
-
 import { useEffect, useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,9 +10,10 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, CheckCircle2, Plus, Save, Trash2, Upload, AlertTriangle, FilePlus2 } from "lucide-react";
+import { CalendarIcon, CheckCircle2, Plus, Save, Trash2, Upload, AlertTriangle, FilePlus2, Loader2 } from "lucide-react";
+import Swal from "sweetalert2";
 
-const fmt = (n) => Number(n || 0).toLocaleString(undefined, { style: "currency", currency: "USD" });
+const fmt = (n) => Number(n || 0).toLocaleString(undefined, { style: "currency", currency: "KES" });
 const EMPTY_ROW = { accountId: "", description: "", debit: "", credit: "", department: "" };
 
 export default function PostingJournal() {
@@ -27,7 +27,7 @@ export default function PostingJournal() {
   const [branchOptions, setBranchOptions] = useState([]);
   const [branchId, setBranchId] = useState("");
   const [accountSearch, setAccountSearch] = useState("");
-
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const totals = useMemo(() => {
     const debit = lines.reduce((s, r) => s + Number(r.debit || 0), 0);
@@ -51,12 +51,14 @@ export default function PostingJournal() {
 
   const addRow = () => setLines((prev) => [...prev, { ...EMPTY_ROW }]);
   const removeRow = (idx) => setLines((prev) => prev.filter((_, i) => i !== idx));
+  
   const clearAll = () => {
     setRefNo("");
     setMemo("");
     setLines([{ ...EMPTY_ROW }, { ...EMPTY_ROW }]);
     setAttachments([]);
     setBranchId("");
+    setAccountSearch("");
   };
 
   const onImportCSV = () => alert("Import CSV not implemented in demo");
@@ -65,15 +67,64 @@ export default function PostingJournal() {
   const saveDraft = () => {
     const draftPayload = { date, reference: refNo, memo, branchId, lines, totals, attachmentsCount: attachments.length };
     console.log("DRAFT:", draftPayload);
-    alert("Saved as draft (console)");
+    Swal.fire({
+      icon: "success",
+      title: "Draft Saved",
+      text: "Journal draft has been saved successfully!",
+      timer: 2000,
+      showConfirmButton: false,
+    });
   };
 
   const postJournal = async () => {
-    if (!balanced) return alert("Journal is not balanced!");
-    if (!branchId) return alert("Branch is required!");
+    // Validate before submission
+    if (!balanced) {
+      Swal.fire({
+        icon: "error",
+        title: "Journal Not Balanced",
+        html: `Debit: ${fmt(totals.debit)}<br/>Credit: ${fmt(totals.credit)}<br/>Difference: ${fmt(totals.diff)}`,
+        confirmButtonColor: "#dc2626",
+      });
+      return;
+    }
+    
+    if (!branchId) {
+      Swal.fire({
+        icon: "error",
+        title: "Branch Required",
+        text: "Please select a branch before posting.",
+        confirmButtonColor: "#dc2626",
+      });
+      return;
+    }
+
+    const hasEntries = lines.some(l => l.accountId && (Number(l.debit) > 0 || Number(l.credit) > 0));
+    if (!hasEntries) {
+      Swal.fire({
+        icon: "error",
+        title: "No Entries",
+        text: "Please add at least one journal entry line.",
+        confirmButtonColor: "#dc2626",
+      });
+      return;
+    }
+
+    // Show loading state
+    setIsSubmitting(true);
+    
+    Swal.fire({
+      title: "Processing Journal...",
+      text: "Please wait while your journal is being posted.",
+      allowOutsideClick: false,
+      allowEscapeKey: false,
+      allowEnterKey: false,
+      didOpen: () => {
+        Swal.showLoading();
+      },
+    });
 
     const apiPayload = lines
-      .filter((l) => l.accountId && (l.debit || l.credit))
+      .filter((l) => l.accountId && (Number(l.debit) > 0 || Number(l.credit) > 0))
       .map((l) => ({
         TotalValue: Number(l.debit || l.credit || 0),
         DebitAmount: Number(l.debit || 0),
@@ -81,50 +132,80 @@ export default function PostingJournal() {
         BranchId: branchId,
         TransactionCode: 1,
         PrimaryDescription: memo || l.description || "Journal entry",
-        Reference: refNo || "N/A",
+        SecondaryDescription: l.description || memo || "",
+        Reference: refNo || `JRN-${Date.now()}`,
         ValueDate: date,
         CreditChartOfAccountId: l.credit ? l.accountId : "",
         DebitChartOfAccountId: l.debit ? l.accountId : "",
         ChartOfAccountId: l.accountId,
         ContraChartOfAccountId: "",
-        Description: l.description || memo || "N/A",
+        Description: l.description || memo || "Journal entry",
       }));
 
-    console.log(apiPayload);
+    console.log("Posting payload:", apiPayload);
 
     try {
       const res = await fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/values/PostJournal`, {
         method: "POST",
-        headers: { "ngrok-skip-browser-warning": "true", "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(apiPayload),
       });
+      
       const data = await res.json();
+      
       if (res.ok && data.Success) {
-        alert("Journal posted successfully!");
+        // Success - clear form and show success message
         clearAll();
+        
+        Swal.fire({
+          icon: "success",
+          title: "Journal Posted Successfully!",
+          html: `
+            <div class="text-center">
+              <div class="mb-3">
+                <i class="fas fa-check-circle text-green-500 text-5xl"></i>
+              </div>
+              <p class="mb-2">Reference: ${refNo || "Auto-generated"}</p>
+              <p class="mb-2">Date: ${new Date(date).toLocaleDateString()}</p>
+              <p class="mb-2">Total Debit: ${fmt(totals.debit)}</p>
+              <p class="mb-2">Total Credit: ${fmt(totals.credit)}</p>
+              <p class="text-sm text-gray-500 mt-3">Journal has been successfully posted to the ledger.</p>
+            </div>
+          `,
+          confirmButtonText: "OK",
+          confirmButtonColor: "#22c55e",
+        });
       } else {
-        console.error("API error:", data);
-        alert("Failed to post journal. See console.");
+        // API error
+        Swal.fire({
+          icon: "error",
+          title: "Failed to Post Journal",
+          text: data.Message || data.Errors || "An error occurred while posting. Please try again.",
+          confirmButtonColor: "#dc2626",
+        });
       }
     } catch (err) {
       console.error("Network error:", err);
-      alert("Network error while posting journal.");
+      Swal.fire({
+        icon: "error",
+        title: "Network Error",
+        text: err.message || "Unable to connect to the server. Please check your connection and try again.",
+        confirmButtonColor: "#dc2626",
+      });
+    } finally {
+      setIsSubmitting(false);
     }
   };
-
 
   const filteredAccounts = accountOptions.filter(a =>
     a.name.toLowerCase().includes(accountSearch.toLowerCase()) ||
     a.type.toLowerCase().includes(accountSearch.toLowerCase())
   );
 
-
   useEffect(() => {
     const fetchAccounts = async () => {
       try {
-        const res = await fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/values/GetChartOfAccount`, {
-          headers: { "ngrok-skip-browser-warning": "true" },
-        });
+        const res = await fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/values/GetChartOfAccount`);
         const data = await res.json();
         if (data.Success && Array.isArray(data.Data)) {
           setAccountOptions(
@@ -132,6 +213,7 @@ export default function PostingJournal() {
               id: acc.Id,
               name: acc.AccountName,
               type: acc.AccountTypeDescription,
+              code: acc.AccountCode,
             }))
           );
         }
@@ -142,9 +224,7 @@ export default function PostingJournal() {
 
     const fetchBranches = async () => {
       try {
-        const res = await fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/values/branches`, {
-          headers: { "ngrok-skip-browser-warning": "true" },
-        });
+        const res = await fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/values/branches`);
         const data = await res.json();
         if (data.Success && Array.isArray(data.Data)) {
           setBranchOptions(data.Data.map((b) => ({ id: b.Id, description: b.Description })));
@@ -163,11 +243,23 @@ export default function PostingJournal() {
       <div className="flex items-center justify-between bg-indigo-800 rounded-lg shadow-2xl">
         <h1 className="text-2xl font-semibold tracking-tight p-4 text-white">New Journal Entry</h1>
         <div className="flex items-center gap-2 bg-indigo-800 p-4 rounded-lg shadow-2xl">
-          {/* <Button variant="outline" onClick={saveDraft}>
-            <Save className="mr-2 h-4 w-4 " /> Save draft
-          </Button> */}
-          <Button disabled={!balanced} onClick={postJournal} className="text-white">
-            <CheckCircle2 className="mr-2 h-4 w-4" /> Post journal
+          <Button variant="outline" onClick={saveDraft} disabled={isSubmitting}>
+            <Save className="mr-2 h-4 w-4" /> Save draft
+          </Button>
+          <Button 
+            disabled={!balanced || isSubmitting} 
+            onClick={postJournal} 
+            className="text-white bg-green-600 hover:bg-green-700"
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Posting...
+              </>
+            ) : (
+              <>
+                <CheckCircle2 className="mr-2 h-4 w-4" /> Post journal
+              </>
+            )}
           </Button>
         </div>
       </div>
@@ -175,19 +267,19 @@ export default function PostingJournal() {
       {/* Header */}
       <Card className="shadow-2xl border-1 border-indigo-800">
         <CardHeader className="pb-2 bg-indigo-800 text-white rounded-t-lg">
-          <CardTitle className="text-base">Header</CardTitle>
+          <CardTitle className="text-base">Header Information</CardTitle>
         </CardHeader>
-        <CardContent className="grid gap-4 md:grid-cols-4 pt-4">
+        <CardContent className="grid gap-4 md:grid-cols-3 pt-4">
           <div className="space-y-2">
-            <Label htmlFor="date">Date</Label>
+            <Label htmlFor="date">Date *</Label>
             <Input id="date" type="date" className="bg-white" value={date} onChange={(e) => setDate(e.target.value)} />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="ref">Reference no.</Label>
+            <Label htmlFor="ref">Reference No.</Label>
             <Input id="ref" placeholder="e.g., JRN-00045" className="bg-white" value={refNo} onChange={(e) => setRefNo(e.target.value)} />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="branch">Branch</Label>
+            <Label htmlFor="branch">Branch *</Label>
             <Select value={branchId} onValueChange={setBranchId}>
               <SelectTrigger className="w-full bg-white">
                 <SelectValue placeholder="Select branch" />
@@ -201,35 +293,26 @@ export default function PostingJournal() {
               </SelectContent>
             </Select>
           </div>
-          {/*
-          <div className="md:col-span-1 space-y-2">
-            <Label htmlFor="memo">Memo</Label>
-            <Textarea id="memo" placeholder="Optional note" value={memo} onChange={(e) => setMemo(e.target.value)} />
+          <div className="md:col-span-3 space-y-2">
+            <Label htmlFor="memo">Memo / Description</Label>
+            <Textarea 
+              id="memo" 
+              placeholder="Enter additional notes for this journal entry" 
+              value={memo} 
+              onChange={(e) => setMemo(e.target.value)} 
+              className="bg-white"
+              rows={2}
+            />
           </div>
-          <div className="col-span-4 flex items-center gap-3 pt-2">
-            <Switch id="dept" checked={showDepartments} onCheckedChange={setShowDepartments} />
-            <Label htmlFor="dept">Track by department/class</Label>
-          </div>*/}
         </CardContent>
       </Card>
 
       {/* Line Items */}
       <Card className="shadow-2xl border-1 border-indigo-800">
         <CardHeader className="pb-2 flex-row items-center justify-between mb-2 bg-indigo-800 rounded-t-lg">
-          <CardTitle className="text-base text-white">Line items</CardTitle>
+          <CardTitle className="text-base text-white">Journal Lines</CardTitle>
           <div className="flex items-center gap-2">
-            {/* <Button variant="outline" onClick={onImportCSV}>
-              <Upload className="mr-2 h-4 w-4" /> Import CSV
-            </Button>
-            <label htmlFor="attach" className="inline-flex">
-              <input id="attach" type="file" multiple className="hidden" onChange={(e) => onAttachFiles(e.target.files)} />
-              <Button variant="outline" asChild>
-                <span>
-                  <FilePlus2 className="mr-2 h-4 w-4" /> Attach files
-                </span>
-              </Button>
-            </label> */}
-            <Button onClick={addRow} className="bg-indigo-600">
+            <Button onClick={addRow} className="bg-indigo-600 hover:bg-indigo-700">
               <Plus className="mr-2 h-4 w-4" /> Add line
             </Button>
           </div>
@@ -238,85 +321,74 @@ export default function PostingJournal() {
           <div className="rounded-md border overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead className="min-w-[220px]">Account</TableHead>
-                  {showDepartments && <TableHead className="min-w-[160px]">Department</TableHead>}
-                  <TableHead className="min-w-[220px] ">Description</TableHead>
-                  <TableHead className="w-[140px] text-right">Debit</TableHead>
-                  <TableHead className="w-[140px] text-right">Credit</TableHead>
+                <TableRow className="bg-gray-100">
+                  <TableHead className="min-w-[250px]">Account *</TableHead>
+                  <TableHead className="min-w-[200px]">Description</TableHead>
+                  <TableHead className="w-[150px] text-right">Debit (KES)</TableHead>
+                  <TableHead className="w-[150px] text-right">Credit (KES)</TableHead>
                   <TableHead className="w-[60px]" />
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {lines.map((row, idx) => (
-                  <TableRow key={idx} className="bg-gray-200 hover:bg-gray-200 border-white">
-                    {/* <TableCell className="align-top">
-                      <Select value={row.accountId} onValueChange={(v) => updateLine(idx, { accountId: v })}>
-                        <SelectTrigger className="w-full bg-white">
-                          <SelectValue placeholder="Select account" />
-                        </SelectTrigger>
-                        <SelectContent className="max-h-100 overflow-y-auto">
-                          {accountOptions.map((a) => (
-                            <SelectItem key={a.id} value={a.id}>
-                              {a.name} ({a.type})
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </TableCell> */}
+                  <TableRow key={idx} className="border-b hover:bg-gray-50">
                     <TableCell className="align-top">
                       <Popover>
                         <PopoverTrigger asChild>
                           <Button
                             variant="outline"
-                            size="sm"
-                            className="w-full text-left bg-white"
+                            className="w-full justify-start text-left font-normal bg-white hover:bg-gray-50"
                           >
                             {row.accountId
-                              ? accountOptions.find(a => a.id === row.accountId)?.name +
-                              ` (${accountOptions.find(a => a.id === row.accountId)?.type})`
+                              ? (() => {
+                                  const account = accountOptions.find(a => a.id === row.accountId);
+                                  return account ? `${account.name} (${account.code})` : "Select account";
+                                })()
                               : "Select account"}
                           </Button>
                         </PopoverTrigger>
-                        <PopoverContent className="max-h-60 w-80 overflow-auto p-2">
-                          <Input
-                            placeholder="Search account..."
-                            value={accountSearch}
-                            onChange={e => setAccountSearch(e.target.value)}
-                            className=" w-full"
-                          />
-
-                          {filteredAccounts.map((a) => (
-                            <Button
-                              key={a.id}
-                              variant="ghost"
-                              size="sm"
-                              className="w-full justify-start rounded-none hover:bg-indigo-50"
-                              onClick={() => {
-                                updateLine(idx, { accountId: a.id });
-                                setAccountSearch(""); // optional: clear search when selected
-                              }}
-                            >
-                              {a.name} ({a.type})
-                            </Button>
-                          ))}
-
+                        <PopoverContent className="w-96 p-0" align="start">
+                          <div className="p-2 border-b">
+                            <Input
+                              placeholder="Search by name or code..."
+                              value={accountSearch}
+                              onChange={e => setAccountSearch(e.target.value)}
+                              className="w-full"
+                              autoFocus
+                            />
+                          </div>
+                          <div className="max-h-64 overflow-y-auto">
+                            {filteredAccounts.length === 0 ? (
+                              <div className="p-4 text-center text-gray-500 text-sm">
+                                No accounts found
+                              </div>
+                            ) : (
+                              filteredAccounts.map((a) => (
+                                <Button
+                                  key={a.id}
+                                  variant="ghost"
+                                  className="w-full justify-start rounded-none hover:bg-indigo-50 h-auto py-3 px-3"
+                                  onClick={() => {
+                                    updateLine(idx, { accountId: a.id });
+                                    setAccountSearch("");
+                                  }}
+                                >
+                                  <div className="text-left">
+                                    <div className="font-medium text-sm">{a.name}</div>
+                                    <div className="text-xs text-gray-500">
+                                      Code: {a.code} | Type: {a.type}
+                                    </div>
+                                  </div>
+                                </Button>
+                              ))
+                            )}
+                          </div>
                         </PopoverContent>
                       </Popover>
                     </TableCell>
-
-                    {showDepartments && (
-                      <TableCell className="align-top">
-                        <Input
-                          placeholder="e.g., Nairobi HQ"
-                          value={row.department}
-                          onChange={(e) => updateLine(idx, { department: e.target.value })}
-                        />
-                      </TableCell>
-                    )}
                     <TableCell className="align-top">
                       <Input
-                        placeholder="Description"
+                        placeholder="Line description"
                         value={row.description}
                         className="bg-white"
                         onChange={(e) => updateLine(idx, { description: e.target.value })}
@@ -324,10 +396,9 @@ export default function PostingJournal() {
                     </TableCell>
                     <TableCell className="align-top">
                       <Input
-                        inputMode="decimal"
                         type="number"
-                        min="0"
                         step="0.01"
+                        min="0"
                         className="text-right bg-white"
                         placeholder="0.00"
                         value={row.debit}
@@ -336,10 +407,9 @@ export default function PostingJournal() {
                     </TableCell>
                     <TableCell className="align-top">
                       <Input
-                        inputMode="decimal"
                         type="number"
-                        min="0"
                         step="0.01"
+                        min="0"
                         className="text-right bg-white"
                         placeholder="0.00"
                         value={row.credit}
@@ -347,57 +417,73 @@ export default function PostingJournal() {
                       />
                     </TableCell>
                     <TableCell className="align-top">
-                      <Button variant="ghost" size="icon" onClick={() => removeRow(idx)} aria-label="Remove line">
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => removeRow(idx)} 
+                        aria-label="Remove line"
+                        className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                      >
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </TableCell>
                   </TableRow>
                 ))}
-                <TableRow>
-                  <TableCell colSpan={showDepartments ? 3 : 2} />
-                  <TableCell className="text-right font-medium">{fmt(totals.debit)}</TableCell>
-                  <TableCell className="text-right font-medium">{fmt(totals.credit)}</TableCell>
+                <TableRow className="bg-gray-50 font-bold">
+                  <TableCell colSpan={2} className="text-right">Totals:</TableCell>
+                  <TableCell className="text-right text-green-700">
+                    {fmt(totals.debit)}
+                  </TableCell>
+                  <TableCell className="text-right text-red-700">
+                    {fmt(totals.credit)}
+                  </TableCell>
                   <TableCell />
                 </TableRow>
               </TableBody>
             </Table>
           </div>
 
-          <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
               {balanced ? (
-                <Badge variant="secondary" className="gap-1">
+                <Badge variant="default" className="gap-1 bg-green-600 text-white">
                   <CheckCircle2 className="h-3.5 w-3.5" /> Balanced
                 </Badge>
               ) : (
-                <Badge variant="destructive" className="gap-1 p-2 text-white">
-                  <AlertTriangle className="h-3.5 w-3.5" /> Out of balance {fmt(totals.diff)}
+                <Badge variant="destructive" className="gap-1">
+                  <AlertTriangle className="h-3.5 w-3.5" /> Out of balance by {fmt(Math.abs(totals.diff))}
                 </Badge>
               )}
               <Separator orientation="vertical" className="h-6" />
               <span className="text-sm text-muted-foreground">{lines.length} line(s)</span>
-              {!!attachments.length && (
-                <span className="text-sm text-muted-foreground">· {attachments.length} attachment(s)</span>
-              )}
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="outline" onClick={clearAll}>
-                Reset
+              <Button variant="outline" onClick={clearAll} disabled={isSubmitting}>
+                Reset Form
               </Button>
-              {/* <Button variant="outline" onClick={saveDraft}>
-                <Save className="mr-2 h-4 w-4" /> Save draft
-              </Button> */}
-              <Button disabled={!balanced} onClick={postJournal}>
-                <CheckCircle2 className="mr-2 h-4 w-4" /> Post journal
+              <Button 
+                disabled={!balanced || isSubmitting} 
+                onClick={postJournal}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Posting...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="mr-2 h-4 w-4" /> Post Journal
+                  </>
+                )}
               </Button>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      <p className="text-xs">
-        Tip: Only one of Debit or Credit can be entered on a line. Totals must balance to enable posting.
-      </p>
+      <div className="text-center text-xs text-gray-400">
+        <p>💡 Tip: Each line can have either a Debit OR a Credit amount, not both. Total Debits must equal Total Credits.</p>
+      </div>
     </div>
   );
 }

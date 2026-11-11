@@ -40,8 +40,7 @@ export default function Division() {
         setLoading(true);
         try {
             const res = await fetch(
-                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/divisions`,
-                { headers: { "ngrok-skip-browser-warning": "true" } }
+                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/divisions`
             );
             const json = await res.json();
             if (json.success) setDivisions(json.data);

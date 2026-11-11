@@ -1,9 +1,117 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import Swal from "sweetalert2";
 import NotFoundImage from "/assets/scopefinding.png";
 import LoanDetailsDrawer from "./LoanDetailsDrawer";
 import LoanGuarantorsDrawer from "./LoanGuarantorsDrawer";
+
+function DisbursementModal({ open, preview, bankAccounts, onConfirm, onCancel, submitting }) {
+  const [bankId, setBankId] = useState("");
+  const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (open) {
+      setBankId(bankAccounts.length > 0 ? String(bankAccounts[0].Id) : "");
+      setDate(new Date().toISOString().split("T")[0]);
+      setError("");
+    }
+  }, [open, bankAccounts]);
+
+  if (!open || !preview) return null;
+
+  const handleConfirm = () => {
+    if (!bankId) return setError("Bank account is required.");
+    if (!date) return setError("Disbursement date is required.");
+    setError("");
+    onConfirm({ bankId, date });
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
+        <h2 className="text-lg font-bold text-gray-800 mb-4 border-b pb-2">Loan Disbursement</h2>
+
+        {/* Bank Account */}
+        <div className="mb-4">
+          <label className="block text-sm font-semibold text-gray-700 mb-1">Bank Account</label>
+          <select
+            value={bankId}
+            onChange={(e) => setBankId(e.target.value)}
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          >
+            {bankAccounts.map((b) => (
+              <option key={b.Id} value={String(b.Id)}>
+                {b.BankName} - {b.BankAccountNumber}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Disbursement Date */}
+        <div className="mb-4">
+          <label className="block text-sm font-semibold text-gray-700 mb-1">Disbursement Date</label>
+          <input
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          />
+        </div>
+
+        <hr className="my-3 border-gray-200" />
+
+        {/* Loan Preview */}
+        <div className="bg-gray-50 rounded-lg p-4 shadow-inner text-sm">
+          <h3 className="font-semibold text-indigo-700 mb-3">Loan Preview</h3>
+          <div className="grid grid-cols-2 gap-y-2 gap-x-3">
+            <span className="font-medium text-gray-600">Loan Type:</span>
+            <span>{preview.LoanCase}</span>
+            <span className="font-medium text-gray-600">Member:</span>
+            <span>{preview.Memberfullname}</span>
+            <span className="font-medium text-gray-600">Loan Applied:</span>
+            <span>KES {preview.LoanAmountApplied.toLocaleString()}</span>
+            <span className="font-medium text-gray-600">Settlement:</span>
+            <span>KES {preview.SettlementAmount.toLocaleString()}</span>
+            {/* <span className="font-medium text-gray-600">Top-Up:</span> 
+            <span>KES {preview.TopUpAmount.toLocaleString()}</span>*/}
+            <span className="font-medium text-gray-600">Boost Principal:</span>
+            <span>KES {preview.BoostPrincipal.toLocaleString()}</span>
+            <span className="font-medium text-gray-600">Boost Interest:</span>
+            <span>KES {preview.BoostInterest.toLocaleString()}</span>
+            <span className="font-semibold text-green-700">Bank Disbursement:</span>
+            <span className="font-semibold text-green-700">KES {preview.BankDisbursement.toLocaleString()}</span>
+            <span className="font-medium text-blue-700">Affected Loan Accounts:</span>
+            <span className="text-blue-700">{preview.AffectedGLs?.LoanAccountGL}</span>
+            <span className="font-medium text-blue-700">Affected Bank GL:</span>
+            <span className="text-blue-700">{preview.AffectedGLs?.BankGL}</span>
+            {/* <span className="font-medium text-blue-700">Affected Savings Accounts:</span>
+            <span className="text-blue-700">{preview.AffectedGLs?.SavingsGL}</span> */}
+          </div>
+        </div>
+
+        {error && <p className="text-red-500 text-sm mt-3">{error}</p>}
+
+        {/* Actions */}
+        <div className="flex justify-end gap-3 mt-5">
+          <button
+            onClick={onCancel}
+            disabled={submitting}
+            className="px-4 py-2 rounded-lg bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm font-medium"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleConfirm}
+            disabled={submitting}
+            className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium disabled:opacity-60"
+          >
+            {submitting ? "Processing..." : "Disburse Loan"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function LoanApproved() {
   const [loans, setLoans] = useState([]);
@@ -18,16 +126,16 @@ export default function LoanApproved() {
   const [selectedLoan, setSelectedLoan] = useState(null);
   const [showGuarantors, setShowGuarantors] = useState(false);
   const [selectedLoanCaseId, setSelectedLoanCaseId] = useState(null);
+  const [disbursalModal, setDisbursalModal] = useState({ open: false, loanCaseId: null });
+  const [statusModal, setStatusModal] = useState({ open: false, type: "", message: "" });
 
   const pageSize = 10;
 
-  // Fetch banks
   useEffect(() => {
     const fetchBanks = async () => {
       try {
         const res = await fetch(
-          "http://88.99.215.90:8600/api/values/getBankWithLinkages",
-          { headers: { "ngrok-skip-browser-warning": "true" } }
+          `${import.meta.env.VITE_APP_LOANING_URL}/api/values/getBankWithLinkages`
         );
         const data = await res.json();
         if (data.Success) setBankAccounts(data.Data);
@@ -38,12 +146,10 @@ export default function LoanApproved() {
     fetchBanks();
   }, []);
 
-  // Fetch loans
   const fetchLoanDrafts = () => {
     setLoading(true);
     fetch(
-      `${import.meta.env.VITE_APP_LOANING_URL}/api/Loaning/GetLoansBy?status=Approved&filterType=1&pageIndex=${pageIndex}&pageSize=${pageSize}`,
-      { headers: { "ngrok-skip-browser-warning": "true" } }
+      `${import.meta.env.VITE_APP_LOANING_URL}/api/Loaning/GetLoansBy?status=Approved&filterType=1&pageIndex=${pageIndex}&pageSize=${pageSize}`
     )
       .then((res) => res.json())
       .then((data) => {
@@ -57,19 +163,14 @@ export default function LoanApproved() {
     fetchLoanDrafts();
   }, [refresh, pageIndex]);
 
-  // Fetch preview amounts
   const fetchPreviewAmount = async (loanId) => {
     try {
       const res = await fetch(
-        `${import.meta.env.VITE_APP_LOANING_URL}/api/LoanDisbursement/Preview?loanCaseID=${loanId}`,
-        { headers: { "ngrok-skip-browser-warning": "true" } }
+        `${import.meta.env.VITE_APP_LOANING_URL}/api/LoanDisbursement/Preview?loanCaseID=${loanId}`
       );
       const result = await res.json();
       if (result?.success) {
-        setPreviewAmounts((prev) => ({
-          ...prev,
-          [loanId]: result.data,
-        }));
+        setPreviewAmounts((prev) => ({ ...prev, [loanId]: result.data }));
       }
     } catch {
       console.error("Preview fetch failed", loanId);
@@ -80,231 +181,60 @@ export default function LoanApproved() {
     loans.forEach((l) => fetchPreviewAmount(l.Id));
   }, [loans]);
 
-
-
-
-
-
-  // Disbursement modal
-  // const handleDisbursement = async (loanCaseId) => {
-  //   const preview = previewAmounts[loanCaseId];
-  //   if (!preview) {
-  //     Swal.fire("Error", "Preview amounts not available", "error");
-  //     return;
-  //   }
-
-  //   const bankOptions = bankAccounts.reduce((acc, b) => {
-  //     acc[b.Id] = `${b.BankName} - ${b.BankAccountNumber}`;
-  //     return acc;
-  //   }, {});
-
-  //   const { value: formValues } = await Swal.fire({
-  //     title: "Loan Disbursement",
-  //     html: `
-  //       <div style="text-align:left; font-size:14px; line-height:1.5">
-  //           <label class="swal2-label">Bank Account:</label>
-  //           <select id="swal-bank" class="swal2-input">
-  //               ${Object.entries(bankOptions)
-  //         .map(([id, name]) => `<option value="${id}">${name}</option>`)
-  //         .join("")}
-  //           </select>
-
-  //           <label class="swal2-label mt-2">Disbursement Date:</label>
-  //           <input type="date" id="swal-date" class="swal2-input" value="${new Date()
-  //         .toISOString()
-  //         .split("T")[0]}"/>
-
-  //           <hr class="my-3"/>
-
-  //           <div style="margin-top:10px">
-  //               <b>Loan Type:</b> ${preview.LoanCase}<br/>
-  //               <b>Member:</b> ${preview.Memberfullname}<br/>
-  //               <b>Loan Applied:</b> <span style="color:#1f2937">KES ${preview.LoanAmountApplied.toLocaleString()}</span><br/>
-  //               <b>Settlement:</b> KES ${preview.SettlementAmount.toLocaleString()}<br/>
-  //               <b>Top-Up:</b> KES ${preview.TopUpAmount.toLocaleString()}<br/>
-  //               <b>Boost Principal:</b> KES ${preview.BoostPrincipal.toLocaleString()}<br/>
-  //               <b>Boost Interest:</b> KES ${preview.BoostInterest.toLocaleString()}<br/>
-  //               <b style="color:green">Bank Disbursement:</b> KES ${preview.BankDisbursement.toLocaleString()}<br/>
-  //           </div>
-  //       </div>
-  //     `,
-  //     focusConfirm: false,
-  //     preConfirm: () => {
-  //       const bankId = document.getElementById("swal-bank").value;
-  //       const date = document.getElementById("swal-date").value;
-  //       if (!bankId) Swal.showValidationMessage("Bank is required");
-  //       if (!date) Swal.showValidationMessage("Date is required");
-  //       return { bankId, date };
-  //     },
-  //     showCancelButton: true,
-  //     confirmButtonText: "Disburse Loan",
-  //   });
-
-  //   if (!formValues) return;
-
-  //   setSubmitting(loanCaseId);
-
-  //   const payload = {
-  //     caseNumber: 0,
-  //     loanCaseID: loanCaseId,
-  //     action: 1,
-  //     disbursedBy: "system",
-  //     disbursmentDate: new Date(formValues.date).toISOString(),
-  //     bankAccountId: formValues.bankId,
-  //   };
-
-  //   try {
-  //     const res = await fetch(
-  //       `${import.meta.env.VITE_APP_LOANING_URL}/api/LoanDisbursement`,
-  //       {
-  //         method: "POST",
-  //         headers: {
-  //           "Content-Type": "application/json",
-  //           "ngrok-skip-browser-warning": "true",
-  //         },
-  //         body: JSON.stringify(payload),
-  //       }
-  //     );
-
-  //     const msg = await res.json();
-  //     if (res.ok || msg.Success) {
-  //       Swal.fire("Success", msg.Message || "Loan disbursed", "success");
-  //       setRefresh((r) => !r);
-  //     } else {
-  //       Swal.fire("Error", msg.Message || "Failed", "error");
-  //     }
-  //   } catch {
-  //     Swal.fire("Error", "Disbursement failed", "error");
-  //   } finally {
-  //     setSubmitting(null);
-  //   }
-  // };
-
-
-
-
-
-
-
-  const handleDisbursement = async (loanCaseId) => {
+  const handleDisbursement = (loanCaseId) => {
     const preview = previewAmounts[loanCaseId];
     if (!preview) {
-      Swal.fire("Error", "Preview amounts not available", "error");
+      setStatusModal({ open: true, type: "error", message: "Preview amounts not available yet. Please wait." });
       return;
     }
+    setDisbursalModal({ open: true, loanCaseId });
+  };
 
-    const bankOptions = bankAccounts.reduce((acc, b) => {
-      acc[b.Id] = `${b.BankName} - ${b.BankAccountNumber}`;
-      return acc;
-    }, {});
-
-    const { value: formValues } = await Swal.fire({
-      title: "Loan Disbursement",
-      html: `
-      <div class="p-2">
-        <div class="mb-4">
-          <label class="swal2-label font-semibold mb-1">Bank Account</label>
-          <select id="swal-bank" class="swal2-input border rounded-lg px-3 py-2">
-            ${Object.entries(bankOptions)
-          .map(([id, name]) => `<option value="${id}">${name}</option>`)
-          .join("")}
-          </select>
-        </div>
-
-        <div class="mb-4">
-          <label class="swal2-label font-semibold mb-1">Disbursement Date</label>
-          <input type="date" id="swal-date" class="swal2-input border rounded-lg px-3 py-2" value="${new Date().toISOString().split("T")[0]}"/>
-        </div>
-
-        <hr class="my-3 border-gray-300"/>
-
-        <div class="mt-4 p-4 bg-gray-50 rounded-lg shadow-inner text-sm">
-          <h3 class="font-semibold text-indigo-700 mb-2">Loan Preview</h3>
-          <div class="grid grid-cols-2 gap-2">
-            <span class="font-medium">Loan Type:</span> <span>${preview.LoanCase}</span>
-            <span class="font-medium">Member:</span> <span>${preview.Memberfullname}</span>
-            <span class="font-medium">Loan Applied:</span> <span class="text-gray-800">KES ${preview.LoanAmountApplied.toLocaleString()}</span>
-            <span class="font-medium">Settlement:</span> <span>KES ${preview.SettlementAmount.toLocaleString()}</span>
-            <span class="font-medium">Top-Up:</span> <span>KES ${preview.TopUpAmount.toLocaleString()}</span>
-            <span class="font-medium">Boost Principal:</span> <span>KES ${preview.BoostPrincipal.toLocaleString()}</span>
-            <span class="font-medium">Boost Interest:</span> <span>KES ${preview.BoostInterest.toLocaleString()}</span>
-            <span class="font-medium text-green-700">Bank Disbursement:</span> <span class="text-green-700 font-semibold">KES ${preview.BankDisbursement.toLocaleString()}</span>
-            <span class="font-medium text-blue-700">Affected Loan Accounts:</span> <span class="text-blue-700 font-semibold"> ${preview.AffectedGLs.LoanAccountGL}</span>
-            <span class="font-medium text-blue-700">Affected Bank GL:</span> <span class="text-blue-700 font-semibold"> ${preview.AffectedGLs.BankGL}</span>
-            <span class="font-medium text-blue-700">Affected Savings Accounts:</span> <span class="text-blue-700 font-semibold"> ${preview.AffectedGLs.SavingsGL}</span>
-          </div>
-        </div>
-      </div>
-    `,
-      focusConfirm: false,
-      preConfirm: () => {
-        const bankId = document.getElementById("swal-bank").value;
-        const date = document.getElementById("swal-date").value;
-        if (!bankId) Swal.showValidationMessage("Bank is required");
-        if (!date) Swal.showValidationMessage("Date is required");
-        return { bankId, date };
-      },
-      showCancelButton: true,
-      confirmButtonText: "Disburse Loan",
-      cancelButtonText: "Cancel",
-      customClass: {
-        popup: "rounded-xl shadow-xl max-w-lg w-full p-6",
-        confirmButton: "bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg",
-        cancelButton: "bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-2 rounded-lg",
-      },
-    });
-
-    if (!formValues) return;
-
+  const handleDisbursalConfirm = async ({ bankId, date }) => {
+    const { loanCaseId } = disbursalModal;
     setSubmitting(loanCaseId);
+    setDisbursalModal({ open: false, loanCaseId: null });
 
     const payload = {
       caseNumber: 0,
       loanCaseID: loanCaseId,
       action: 1,
       disbursedBy: "system",
-      disbursmentDate: new Date(formValues.date).toISOString(),
-      bankAccountId: formValues.bankId,
+      disbursmentDate: new Date(date).toISOString(),
+      bankAccountId: bankId,
     };
 
     try {
       const res = await fetch(`${import.meta.env.VITE_APP_LOANING_URL}/api/LoanDisbursement`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "ngrok-skip-browser-warning": "true" },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-
       const msg = await res.json();
+      console.log(msg, "Disbursement response");
       if (res.ok || msg.Success) {
-        Swal.fire("Success", msg.Message || "Loan disbursed", "success");
+        setStatusModal({ open: true, type: "success", message: msg.Message || msg.message || "Loan disbursed successfully." });
         setRefresh((r) => !r);
       } else {
-        Swal.fire("Error", msg.Message || "Failed", "error");
+        setStatusModal({ open: true, type: "error", message: msg.Message || msg.message || "Disbursement failed." });
       }
     } catch {
-      Swal.fire("Error", "Disbursement failed", "error");
+      setStatusModal({ open: true, type: "error", message: "Disbursement failed. Please try again." });
     } finally {
       setSubmitting(null);
     }
   };
 
-
-
-
-
-  // Filter loans
   const filteredLoans = loans.filter((l) => {
     const t = searchTerm.toLowerCase();
     return (
       l.CaseNumber?.toString().includes(t) ||
-      `${l.CustomerIndividualFirstName} ${l.CustomerIndividualLastName}`
-        .toLowerCase()
-        .includes(t)
+      `${l.CustomerIndividualFirstName} ${l.CustomerIndividualLastName}`.toLowerCase().includes(t)
     );
   });
 
   return (
-    <div className="bg-white py-8 rounded-xl ">
+    <div className="bg-white py-8 rounded-xl">
       {/* Search + Refresh */}
       <div className="flex justify-between items-center mb-6">
         <input
@@ -331,17 +261,13 @@ export default function LoanApproved() {
           <span className="col-span-2">Branch</span>
           <span className="col-span-2">Status</span>
           <span className="col-span-2">Amount</span>
-          {/* <span className="col-span-2">Preview Amount</span> */}
           <span className="col-span-2 text-right">Actions</span>
         </div>
 
         {loading ? (
           <div className="space-y-2 animate-pulse">
             {Array.from({ length: 3 }).map((_, i) => (
-              <div
-                key={i}
-                className="grid grid-cols-6 gap-2 bg-gray-100 py-4 px-6 rounded"
-              >
+              <div key={i} className="grid grid-cols-6 gap-2 bg-gray-100 py-4 px-6 rounded">
                 {Array.from({ length: 6 }).map((__, j) => (
                   <div key={j} className="h-4 bg-gray-200 rounded"></div>
                 ))}
@@ -358,7 +284,7 @@ export default function LoanApproved() {
                 <span className="font-medium text-indigo-700 col-span-1">
                   {loan.CaseNumber.toString().padStart(7, "0")}
                 </span>
-                <span className="col-span-2">
+                <span className="col-span-2 truncate">
                   {loan.CustomerIndividualFirstName} {loan.CustomerIndividualLastName}
                 </span>
                 <span className="col-span-2">{loan.BranchDescription}</span>
@@ -367,12 +293,9 @@ export default function LoanApproved() {
                     {loan.StatusDescription}
                   </span>
                 </span>
-                <span className="font-semibold col-span-2">
+                <span className="font-semibold col-span-3">
                   Ksh {loan.AmountApplied.toLocaleString()}
                 </span>
-                {/* <span className="font-semibold col-span-2 text-green-700">
-                  Ksh {previewAmounts[loan.Id]?.BankDisbursement?.toLocaleString() || "-"}
-                </span> */}
 
                 <div className="flex gap-2 col-span-2 justify-end">
                   <Button
@@ -448,6 +371,37 @@ export default function LoanApproved() {
         loanCaseId={selectedLoanCaseId}
         onClose={() => setShowGuarantors(false)}
       />
+
+      {/* Disbursement Modal */}
+      <DisbursementModal
+        open={disbursalModal.open}
+        preview={previewAmounts[disbursalModal.loanCaseId]}
+        bankAccounts={bankAccounts}
+        onConfirm={handleDisbursalConfirm}
+        onCancel={() => setDisbursalModal({ open: false, loanCaseId: null })}
+        submitting={submitting !== null}
+      />
+
+      {/* Status Modal */}
+      {statusModal.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6 text-center">
+            <div className={`text-4xl mb-3 ${statusModal.type === "success" ? "text-green-500" : "text-red-500"}`}>
+              {statusModal.type === "success" ? "✓" : "✕"}
+            </div>
+            <h3 className={`text-lg font-bold mb-2 ${statusModal.type === "success" ? "text-green-700" : "text-red-700"}`}>
+              {statusModal.type === "success" ? "Success" : "Error"}
+            </h3>
+            <p className="text-gray-600 text-sm mb-5">{statusModal.message}</p>
+            <button
+              onClick={() => setStatusModal({ open: false, type: "", message: "" })}
+              className="px-5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium"
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

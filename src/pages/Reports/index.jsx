@@ -52,7 +52,7 @@ const fileIcon = (type) => {
 const downloadCICMonthlyLoansExcel = async () => {
     try {
         const res = await fetch(
-            "http://88.99.215.90:8600/api/reporting/GetLoanSummary",
+            `${import.meta.env.VITE_APP_REPORT_URL}/api/reporting/GetLoanSummary`,
             { headers: { "ngrok-skip-browser-warning": "true" } }
         );
         const data = await res.json();
@@ -100,7 +100,7 @@ const downloadCICMonthlyLoansExcel = async () => {
 const downloadCICRenewalExcel = async () => {
     try {
         const res = await fetch(
-            "http://88.99.215.90:8600/api/reporting/CICRUBANISACCODATARENEWALTEMPLATE",
+            `${import.meta.env.VITE_APP_REPORT_URL}/api/reporting/CICRUBANISACCODATARENEWALTEMPLATE`,
             { headers: { "ngrok-skip-browser-warning": "true" } }
         );
         const data = await res.json();
@@ -150,7 +150,7 @@ const downloadCICRenewalExcel = async () => {
 const downloadCICYearlyRenewExcel = async () => {
     try {
         const res = await fetch(
-            "http://88.99.215.90:8600/api/reporting/CICRUBANIYEARLYDATARENEWTEMPLATE",
+            `${import.meta.env.VITE_APP_REPORT_URL}/api/reporting/CICRUBANIYEARLYDATARENEWTEMPLATE`,
             { headers: { "ngrok-skip-browser-warning": "true" } }
         );
         const data = await res.json();

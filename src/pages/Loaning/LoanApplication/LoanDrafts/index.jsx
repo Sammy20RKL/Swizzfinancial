@@ -12,6 +12,7 @@ import NotFoundImage from "/assets/scopefinding.png";
 import LoanAppraisalDrawer from "./LoanAppraisalDrawer";
 import LoanDetailsDrawer from "./LoanDetailsDrawer";
 import LoanGuarantorsDrawer from "./LoanGuarantorsDrawer";
+import UpdateLoanDraftDrawer from "./UpdateLoanDraftDrawer";
 
 export default function LoanDrafts() {
     const [loans, setLoans] = useState([]);
@@ -36,6 +37,8 @@ export default function LoanDrafts() {
     const [showGuarantors, setShowGuarantors] = useState(false);
     const [selectedLoanCaseId, setSelectedLoanCaseId] = useState(null);
 
+    const [updateOpen, setUpdateOpen] = useState(false);
+
 
 
 
@@ -43,8 +46,7 @@ export default function LoanDrafts() {
     const fetchLoanDrafts = () => {
         setLoading(true);
         fetch(
-            `${import.meta.env.VITE_APP_LOANING_URL}/api/Loaning/GetLoansBy?status=Registered&filterType=1&pageIndex=${pageIndex}&pageSize=${pageSize}`,
-            { headers: { "ngrok-skip-browser-warning": "true" } }
+            `${import.meta.env.VITE_APP_LOANING_URL}/api/Loaning/GetLoansBy?status=Registered&filterType=1&pageIndex=${pageIndex}&pageSize=${pageSize}`
         )
             .then((res) => res.json())
             .then((data) => {
@@ -58,6 +60,7 @@ export default function LoanDrafts() {
         fetchLoanDrafts();
     }, [refresh, pageIndex]);
 
+    console.log(loans);
 
 
 
@@ -108,7 +111,7 @@ export default function LoanDrafts() {
             <div className="bg-gray-200 p-4 rounded-sm">
                 <div className="grid grid-cols-12 gap-4 bg-gray-700 text-gray-100 font-semibold p-3 rounded-lg mb-4">
                     <span className="col-span-1">Loan No.</span>
-                    <span className="col-span-2">Customer</span>
+                    <span className="col-span-2">Member</span>
                     <span className="col-span-2">Branch</span>
                     <span className="col-span-2">Status</span>
                     <span className="col-span-2">Amount</span>
@@ -136,19 +139,19 @@ export default function LoanDrafts() {
                                 className="bg-white rounded-lg shadow-lg border"
                             >
                                 <div className="grid grid-cols-12 gap-2 items-center py-4 px-6 hover:shadow-xl transition-all">
-                                    <span className="font-medium text-indigo-700 col-span-1">
+                                    <span className=" text-sm font-medium text-indigo-700 col-span-1">
                                         {loan.CaseNumber.toString().padStart(7, "0")}
                                     </span>
-                                    <span className="flex items-center gap-2 col-span-2">
+                                    <span className=" text-sm flex items-center gap-2 col-span-2 truncate">
                                         {loan.CustomerIndividualFirstName + " " + loan.CustomerIndividualLastName}
                                     </span>
-                                    <span className="flex items-center gap-2 col-span-2">
+                                    <span className="text-sm flex items-center gap-2 col-span-2">
                                         {loan.BranchDescription}
                                     </span>
                                     <span className="text-sm w-28 rounded-2xl col-span-2 text-center flex items-center justify-center p-1 bg-gray-500 text-white">
                                         {loan.StatusDescription}
                                     </span>
-                                    <span className="font-semibold col-span-2">
+                                    <span className=" text-sm font-semibold col-span-2">
                                         Ksh {loan.AmountApplied}
                                     </span>
 
@@ -157,6 +160,17 @@ export default function LoanDrafts() {
                                     <div className="flex gap-2 col-span-3 justify-end">
 
 
+
+                                        {/* <Button
+                                            size="sm"
+                                            className="bg-yellow-600 text-white hover:bg-yellow-700"
+                                            onClick={() => {
+                                                setSelectedLoan(loan);
+                                                setUpdateOpen(true);
+                                            }}
+                                        >
+                                            Edit
+                                        </Button> */}
 
                                         <Button
                                             size="sm"
@@ -252,6 +266,12 @@ export default function LoanDrafts() {
                 onClose={() => setShowGuarantors(false)}
             />
 
+            <UpdateLoanDraftDrawer
+                open={updateOpen}
+                loan={selectedLoan}
+                onClose={() => setUpdateOpen(false)}
+                onSuccess={() => setRefresh(!refresh)}
+            />
 
         </div>
     );

@@ -69,7 +69,7 @@ export default function EditInsurance({ open, onClose, data, refresh }) {
         setLoading(true);
         try {
             const res = await fetch(
-                "http://88.99.215.90:8600/api/MemberExit/UpdateInsuranceCompany",
+                "http://95.216.225.26:8006/api/MemberExit/UpdateInsuranceCompany",
                 {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },

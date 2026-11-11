@@ -20,8 +20,7 @@ function ChartOfAccountSubDrawer({ open, onClose, onSelect }) {
       const fetchAccounts = async () => {
         try {
           const res = await fetch(
-            `${import.meta.env.VITE_APP_FIN_URL}/api/values/GetChartOfAccount`,
-            { headers: { "ngrok-skip-browser-warning": "true" } }
+            `${import.meta.env.VITE_APP_FIN_URL}/api/values/GetChartOfAccount`
           );
           const data = await res.json();
           if (data.Success) setAccounts(data.Data);
@@ -99,8 +98,7 @@ function SystemGLSubDrawer({ open, onClose, onSelect }) {
       const fetchGl = async () => {
         try {
           const res = await fetch(
-            `${import.meta.env.VITE_APP_FIN_URL}/api/values/GetSystemMapItems`,
-            { headers: { "ngrok-skip-browser-warning": "true" } }
+            `${import.meta.env.VITE_APP_FIN_URL}/api/values/GetSystemMapItems`
           );
           const data = await res.json();
           // ✅ API returns an array directly
@@ -211,7 +209,6 @@ export default function UpdateAccountConfigurationDrawer({ open, onClose, accoun
           method: "PUT", // ✅ use PUT for update
           headers: {
             "Content-Type": "application/json",
-            "ngrok-skip-browser-warning": "true",
           },
           body: JSON.stringify(formData),
         }

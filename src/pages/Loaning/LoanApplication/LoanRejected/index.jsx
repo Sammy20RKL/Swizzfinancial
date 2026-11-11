@@ -35,8 +35,7 @@ export default function LoanRejected() {
     const fetchLoanDrafts = () => {
         setLoading(true);
         fetch(
-            `${import.meta.env.VITE_APP_LOANING_URL}/api/Loaning/GetLoansBy?status=Rejected&filterType=1&pageIndex=${pageIndex}&pageSize=${pageSize}`,
-            { headers: { "ngrok-skip-browser-warning": "true" } }
+            `${import.meta.env.VITE_APP_LOANING_URL}/api/Loaning/GetLoansBy?status=Rejected&filterType=1&pageIndex=${pageIndex}&pageSize=${pageSize}`
         )
             .then((res) => res.json())
             .then((data) => {
@@ -85,7 +84,6 @@ export default function LoanRejected() {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'ngrok-skip-browser-warning': 'true',
                     },
                     body: JSON.stringify(payload),
                 }

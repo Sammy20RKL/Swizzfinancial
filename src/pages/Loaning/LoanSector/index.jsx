@@ -13,9 +13,7 @@ export default function LoanSector() {
 
     const fetchLoanSectors = () => {
         setLoading(true);
-        fetch("http://88.99.215.90:8600/api/Loansetups/GetAllloanSector", {
-            headers: { "ngrok-skip-browser-warning": "true" },
-        })
+        fetch(`${import.meta.env.VITE_APP_LOANING_URL}/api/Loansetups/GetAllloanSector`)
             .then((res) => res.json())
             .then((data) => {
                 setSectors(Array.isArray(data) ? data : []);
@@ -94,8 +92,8 @@ export default function LoanSector() {
                                 <span>
                                     <span
                                         className={`px-3 py-1 text-sm rounded-full font-medium ${sector.IsActive
-                                                ? "bg-green-100 text-green-700"
-                                                : "bg-red-100 text-red-700"
+                                            ? "bg-green-100 text-green-700"
+                                            : "bg-red-100 text-red-700"
                                             }`}
                                     >
                                         {sector.IsActive ? "Active" : "Inactive"}

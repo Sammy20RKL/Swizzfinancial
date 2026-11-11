@@ -39,8 +39,7 @@ export default function AddStation({ open, onClose, refresh }) {
     const fetchZones = async () => {
         try {
             const res = await fetch(
-                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/zones`,
-                { headers: { "ngrok-skip-browser-warning": "true" } }
+                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/zones`
             );
             const json = await res.json();
             if (json.success) setZones(json.data);

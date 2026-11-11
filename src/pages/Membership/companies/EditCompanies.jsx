@@ -122,8 +122,7 @@ export default function EditCompanies({ open, onClose, data, refresh }) {
                 {
                     method: "PUT",
                     headers: {
-                        "Content-Type": "application/json",
-                        "ngrok-skip-browser-warning": "true",
+                        "Content-Type": "application/json"
                     },
                     body: JSON.stringify(form),
                 }
